@@ -103,8 +103,9 @@ client = PlyrClient(
 |--------|------|-------------|
 | `list_tracks(limit=50)` | no | list all public tracks |
 | `get_track(track_id)` | no | get track by ID |
-| `my_tracks(limit=50)` | yes | list your tracks (with liked state) |
+| `my_tracks(limit=50)` | yes | list your tracks |
 | `upload(file, title, album=None)` | yes | upload a track |
+| `update_track(track_id, title=None, album=None, image=None)` | yes | update track metadata |
 | `download(track_id, output=None)` | yes | download track audio |
 | `delete(track_id)` | yes | delete a track |
 | `me()` | yes | get current user info |
