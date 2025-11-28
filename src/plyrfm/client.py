@@ -124,9 +124,9 @@ class PlyrClient(_BaseClient):
         return response.json()
 
     def my_tracks(self, *, limit: int = 50) -> list[Track]:
-        """list your own tracks (with liked state). requires auth."""
+        """list your own tracks. requires auth."""
         response = self._client.get(
-            self._url("/tracks/"),
+            self._url("/tracks/me"),
             headers=self._auth_headers,
             params={"limit": limit},
         )
@@ -309,9 +309,9 @@ class AsyncPlyrClient(_BaseClient):
         return response.json()
 
     async def my_tracks(self, *, limit: int = 50) -> list[Track]:
-        """list your own tracks (with liked state). requires auth."""
+        """list your own tracks. requires auth."""
         response = await self._client.get(
-            self._url("/tracks/"),
+            self._url("/tracks/me"),
             headers=self._auth_headers,
             params={"limit": limit},
         )
