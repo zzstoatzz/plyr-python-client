@@ -4,15 +4,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import httpx
 
 from plyrfm._internal.config import Settings, get_settings
 from plyrfm._internal.types import Track, UploadResult
-
-if TYPE_CHECKING:
-    pass
 
 
 class _BaseClient:
@@ -30,7 +26,8 @@ class _BaseClient:
         self._api_url = api_url or self._settings.api_url
 
     @property
-    def _headers(self) -> dict[str, str]:
+    def _auth_headers(self) -> dict[str, str]:
+        """get auth headers. raises if no token configured."""
         if not self._token:
             msg = (
                 "authentication required. "
@@ -59,16 +56,15 @@ class PlyrClient(_BaseClient):
     """synchronous client for the plyr.fm API.
 
     example:
-        # uses PLYR_TOKEN from environment
+        # public operations (no auth needed)
         client = PlyrClient()
         tracks = client.list_tracks()
+        track = client.get_track(42)
 
-        # explicit token
+        # authenticated operations
         client = PlyrClient(token="your_token")
-
-        # as context manager
-        with PlyrClient() as client:
-            tracks = client.list_tracks()
+        my_tracks = client.my_tracks()
+        client.upload("song.mp3", "My Song")
     """
 
     def __init__(
@@ -93,14 +89,13 @@ class PlyrClient(_BaseClient):
         self._client.close()
 
     # -------------------------------------------------------------------------
-    # read operations
+    # public operations (no auth required)
     # -------------------------------------------------------------------------
 
     def list_tracks(self, *, limit: int = 50) -> list[Track]:
-        """list your tracks. requires auth."""
+        """list all public tracks. no auth required."""
         response = self._client.get(
             self._url("/tracks/"),
-            headers=self._headers,
             params={"limit": limit},
         )
         response.raise_for_status()
@@ -108,26 +103,36 @@ class PlyrClient(_BaseClient):
         return [Track.from_dict(t) for t in data.get("tracks", [])]
 
     def get_track(self, track_id: int) -> Track:
-        """get a single track by ID. requires auth."""
+        """get a single track by ID. no auth required."""
         response = self._client.get(
             self._url(f"/tracks/{track_id}"),
-            headers=self._headers,
         )
         response.raise_for_status()
         return Track.from_dict(response.json())
+
+    # -------------------------------------------------------------------------
+    # authenticated operations
+    # -------------------------------------------------------------------------
 
     def me(self) -> dict[str, str]:
         """get current user info. requires auth."""
         response = self._client.get(
             self._url("/auth/me"),
-            headers=self._headers,
+            headers=self._auth_headers,
         )
         response.raise_for_status()
         return response.json()
 
-    # -------------------------------------------------------------------------
-    # write operations
-    # -------------------------------------------------------------------------
+    def my_tracks(self, *, limit: int = 50) -> list[Track]:
+        """list your own tracks (with liked state). requires auth."""
+        response = self._client.get(
+            self._url("/tracks/"),
+            headers=self._auth_headers,
+            params={"limit": limit},
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [Track.from_dict(t) for t in data.get("tracks", [])]
 
     def upload(
         self,
@@ -151,7 +156,7 @@ class PlyrClient(_BaseClient):
 
             response = self._client.post(
                 self._url("/tracks/"),
-                headers=self._headers,
+                headers=self._auth_headers,
                 files=files,
                 data=data,
                 timeout=timeout,
@@ -180,7 +185,7 @@ class PlyrClient(_BaseClient):
         with self._client.stream(
             "GET",
             self._url(f"/tracks/uploads/{upload_id}/progress"),
-            headers=self._headers,
+            headers=self._auth_headers,
             timeout=timeout,
         ) as response:
             for line in response.iter_lines():
@@ -200,7 +205,7 @@ class PlyrClient(_BaseClient):
         """delete a track. requires auth + ownership."""
         response = self._client.delete(
             self._url(f"/tracks/{track_id}"),
-            headers=self._headers,
+            headers=self._auth_headers,
         )
         response.raise_for_status()
 
@@ -211,7 +216,7 @@ class PlyrClient(_BaseClient):
         *,
         timeout: float = 300.0,
     ) -> Path:
-        """download a track. requires auth."""
+        """download a track's audio file. requires auth."""
         track = self.get_track(track_id)
 
         if output is None:
@@ -224,7 +229,7 @@ class PlyrClient(_BaseClient):
 
         response = self._client.get(
             self._url(f"/audio/{track.file_id}"),
-            headers=self._headers,
+            headers=self._auth_headers,
             follow_redirects=True,
             timeout=timeout,
         )
@@ -237,15 +242,14 @@ class AsyncPlyrClient(_BaseClient):
     """asynchronous client for the plyr.fm API.
 
     example:
+        # public operations (no auth needed)
         async with AsyncPlyrClient() as client:
             tracks = await client.list_tracks()
 
-        # or manually
-        client = AsyncPlyrClient(token="your_token")
-        try:
-            tracks = await client.list_tracks()
-        finally:
-            await client.close()
+        # authenticated operations
+        async with AsyncPlyrClient(token="your_token") as client:
+            my_tracks = await client.my_tracks()
+            await client.upload("song.mp3", "My Song")
     """
 
     def __init__(
@@ -270,14 +274,13 @@ class AsyncPlyrClient(_BaseClient):
         await self._client.aclose()
 
     # -------------------------------------------------------------------------
-    # read operations
+    # public operations (no auth required)
     # -------------------------------------------------------------------------
 
     async def list_tracks(self, *, limit: int = 50) -> list[Track]:
-        """list your tracks. requires auth."""
+        """list all public tracks. no auth required."""
         response = await self._client.get(
             self._url("/tracks/"),
-            headers=self._headers,
             params={"limit": limit},
         )
         response.raise_for_status()
@@ -285,26 +288,36 @@ class AsyncPlyrClient(_BaseClient):
         return [Track.from_dict(t) for t in data.get("tracks", [])]
 
     async def get_track(self, track_id: int) -> Track:
-        """get a single track by ID. requires auth."""
+        """get a single track by ID. no auth required."""
         response = await self._client.get(
             self._url(f"/tracks/{track_id}"),
-            headers=self._headers,
         )
         response.raise_for_status()
         return Track.from_dict(response.json())
+
+    # -------------------------------------------------------------------------
+    # authenticated operations
+    # -------------------------------------------------------------------------
 
     async def me(self) -> dict[str, str]:
         """get current user info. requires auth."""
         response = await self._client.get(
             self._url("/auth/me"),
-            headers=self._headers,
+            headers=self._auth_headers,
         )
         response.raise_for_status()
         return response.json()
 
-    # -------------------------------------------------------------------------
-    # write operations
-    # -------------------------------------------------------------------------
+    async def my_tracks(self, *, limit: int = 50) -> list[Track]:
+        """list your own tracks (with liked state). requires auth."""
+        response = await self._client.get(
+            self._url("/tracks/"),
+            headers=self._auth_headers,
+            params={"limit": limit},
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [Track.from_dict(t) for t in data.get("tracks", [])]
 
     async def upload(
         self,
@@ -328,7 +341,7 @@ class AsyncPlyrClient(_BaseClient):
 
             response = await self._client.post(
                 self._url("/tracks/"),
-                headers=self._headers,
+                headers=self._auth_headers,
                 files=files,
                 data=data,
                 timeout=timeout,
@@ -357,7 +370,7 @@ class AsyncPlyrClient(_BaseClient):
         async with self._client.stream(
             "GET",
             self._url(f"/tracks/uploads/{upload_id}/progress"),
-            headers=self._headers,
+            headers=self._auth_headers,
             timeout=timeout,
         ) as response:
             async for line in response.aiter_lines():
@@ -377,7 +390,7 @@ class AsyncPlyrClient(_BaseClient):
         """delete a track. requires auth + ownership."""
         response = await self._client.delete(
             self._url(f"/tracks/{track_id}"),
-            headers=self._headers,
+            headers=self._auth_headers,
         )
         response.raise_for_status()
 
@@ -388,7 +401,7 @@ class AsyncPlyrClient(_BaseClient):
         *,
         timeout: float = 300.0,
     ) -> Path:
-        """download a track. requires auth."""
+        """download a track's audio file. requires auth."""
         track = await self.get_track(track_id)
 
         if output is None:
@@ -401,7 +414,7 @@ class AsyncPlyrClient(_BaseClient):
 
         response = await self._client.get(
             self._url(f"/audio/{track.file_id}"),
-            headers=self._headers,
+            headers=self._auth_headers,
             follow_redirects=True,
             timeout=timeout,
         )

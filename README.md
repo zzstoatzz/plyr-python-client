@@ -12,7 +12,9 @@ pip install plyrfm
 
 ## authentication
 
-all operations require a developer token:
+some operations (listing public tracks, getting a track by ID) work without auth.
+
+for authenticated operations (upload, download, delete, my-tracks):
 
 1. go to [plyr.fm/portal](https://plyr.fm/portal) -> "your data" -> "developer tokens"
 2. create a token (you'll authorize via your PDS)
@@ -27,20 +29,15 @@ export PLYR_TOKEN="your_token_here"
 ### CLI
 
 ```bash
-# list your tracks
-plyr list
+# public (no auth required)
+plyr list                        # list all tracks
 
-# upload a track
-plyr upload track.mp3 "My Song" --album "My Album"
-
-# download a track
-plyr download 42 -o song.mp3
-
-# delete a track
-plyr delete 42 -y
-
-# check auth
-plyr me
+# authenticated (requires PLYR_TOKEN)
+plyr my-tracks                   # list your tracks
+plyr upload track.mp3 "My Song"  # upload
+plyr download 42 -o song.mp3     # download
+plyr delete 42 -y                # delete
+plyr me                          # check auth
 ```
 
 ### sync client
@@ -48,23 +45,16 @@ plyr me
 ```python
 from plyrfm import PlyrClient
 
-# uses PLYR_TOKEN from environment
-with PlyrClient() as client:
-    # list tracks
-    tracks = client.list_tracks()
-    for track in tracks:
-        print(f"{track.id}: {track.title}")
+# public operations (no auth)
+client = PlyrClient()
+tracks = client.list_tracks()
+track = client.get_track(42)
 
-    # upload
-    result = client.upload("song.mp3", "My Song", album="My Album")
-    print(f"uploaded track {result.track_id}")
-
-    # download
-    path = client.download(42, output="song.mp3")
-    print(f"saved to {path}")
-
-    # delete
-    client.delete(42)
+# authenticated operations
+client = PlyrClient(token="your_token")  # or set PLYR_TOKEN
+my_tracks = client.my_tracks()
+result = client.upload("song.mp3", "My Song")
+client.delete(result.track_id)
 ```
 
 ### async client
@@ -74,16 +64,13 @@ import asyncio
 from plyrfm import AsyncPlyrClient
 
 async def main():
+    # public (no auth)
     async with AsyncPlyrClient() as client:
         tracks = await client.list_tracks()
-        for track in tracks:
-            print(f"{track.id}: {track.title}")
 
-        # upload concurrently
-        results = await asyncio.gather(
-            client.upload("song1.mp3", "Song 1"),
-            client.upload("song2.mp3", "Song 2"),
-        )
+    # authenticated
+    async with AsyncPlyrClient(token="your_token") as client:
+        await client.upload("song.mp3", "My Song")
 
 asyncio.run(main())
 ```
@@ -110,13 +97,14 @@ client = PlyrClient(
 
 ### `PlyrClient` / `AsyncPlyrClient`
 
-| method | auth required | description |
-|--------|---------------|-------------|
-| `list_tracks(limit=50)` | yes | list your tracks |
-| `get_track(track_id)` | yes | get track by ID |
-| `upload(file, title, album=None)` | yes + artist profile | upload a track |
+| method | auth | description |
+|--------|------|-------------|
+| `list_tracks(limit=50)` | no | list all public tracks |
+| `get_track(track_id)` | no | get track by ID |
+| `my_tracks(limit=50)` | yes | list your tracks (with liked state) |
+| `upload(file, title, album=None)` | yes | upload a track |
 | `download(track_id, output=None)` | yes | download track audio |
-| `delete(track_id)` | yes + ownership | delete a track |
+| `delete(track_id)` | yes | delete a track |
 | `me()` | yes | get current user info |
 
 ### types
@@ -152,7 +140,7 @@ class UploadResult:
 
 | variable | default | description |
 |----------|---------|-------------|
-| `PLYR_TOKEN` | - | developer token (required) |
+| `PLYR_TOKEN` | - | developer token (for authenticated operations) |
 | `PLYR_API_URL` | `https://api.plyr.fm` | API base URL |
 
 ## requirements

@@ -21,12 +21,15 @@ def _error(msg: str) -> None:
     sys.exit(1)
 
 
-def _get_client() -> PlyrClient:
-    """get client, handling missing token gracefully."""
-    try:
-        return PlyrClient()
-    except ValueError as e:
-        _error(str(e))
+def _get_client(require_auth: bool = False) -> PlyrClient:
+    """get client, optionally requiring auth."""
+    client = PlyrClient()
+    if require_auth and not client._token:
+        _error(
+            "authentication required. "
+            "set PLYR_TOKEN or create a token at plyr.fm/portal"
+        )
+    return client
 
 
 # -----------------------------------------------------------------------------
@@ -35,12 +38,40 @@ def _get_client() -> PlyrClient:
 
 
 def cmd_list(limit: int = 20) -> None:
-    """list your tracks."""
+    """list all public tracks (no auth required)."""
     client = _get_client()
 
     with console.status("fetching tracks..."):
+        tracks = client.list_tracks(limit=limit)
+
+    if not tracks:
+        console.print("no tracks found")
+        return
+
+    table = Table(title="tracks")
+    table.add_column("ID", style="cyan")
+    table.add_column("title")
+    table.add_column("artist")
+    table.add_column("plays", justify="right")
+
+    for track in tracks:
+        table.add_row(
+            str(track.id),
+            track.title,
+            track.artist,
+            str(track.play_count),
+        )
+
+    console.print(table)
+
+
+def cmd_my_tracks(limit: int = 20) -> None:
+    """list your own tracks (requires auth)."""
+    client = _get_client(require_auth=True)
+
+    with console.status("fetching your tracks..."):
         try:
-            tracks = client.list_tracks(limit=limit)
+            tracks = client.my_tracks(limit=limit)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 401:
                 _error("invalid or expired token")
@@ -69,8 +100,8 @@ def cmd_list(limit: int = 20) -> None:
 
 
 def cmd_upload(file: str, title: str, album: str | None = None) -> None:
-    """upload a track."""
-    client = _get_client()
+    """upload a track (requires auth)."""
+    client = _get_client(require_auth=True)
     path = Path(file)
 
     if not path.exists():
@@ -92,8 +123,8 @@ def cmd_upload(file: str, title: str, album: str | None = None) -> None:
 
 
 def cmd_download(track_id: int, output: str | None = None) -> None:
-    """download a track."""
-    client = _get_client()
+    """download a track (requires auth)."""
+    client = _get_client(require_auth=True)
 
     with console.status("downloading..."):
         try:
@@ -111,8 +142,8 @@ def cmd_download(track_id: int, output: str | None = None) -> None:
 
 
 def cmd_delete(track_id: int, yes: bool = False) -> None:
-    """delete a track."""
-    client = _get_client()
+    """delete a track (requires auth)."""
+    client = _get_client(require_auth=True)
 
     # get track info for confirmation
     with console.status("fetching track..."):
@@ -142,8 +173,8 @@ def cmd_delete(track_id: int, yes: bool = False) -> None:
 
 
 def cmd_me() -> None:
-    """show current user."""
-    client = _get_client()
+    """show current user (requires auth)."""
+    client = _get_client(require_auth=True)
 
     try:
         info = client.me()
@@ -166,23 +197,26 @@ USAGE = """\
 [bold]usage:[/]
     plyr <command> [options]
 
-[bold]commands:[/]
-    list [--limit N]              list your tracks
+[bold]public commands (no auth):[/]
+    list [--limit N]              list all tracks
+
+[bold]authenticated commands:[/]
+    my-tracks [--limit N]         list your tracks
     upload <file> <title> [--album NAME]
                                   upload a track
     download <id> [--output FILE] download a track
     delete <id> [--yes]           delete a track
     me                            show current user
 
-[bold]setup:[/]
+[bold]auth setup:[/]
     1. create a token at plyr.fm/portal -> "developer tokens"
     2. export PLYR_TOKEN="your_token"
 
 [bold]examples:[/]
-    plyr list
-    plyr upload track.mp3 "My Song" --album "My Album"
-    plyr download 42 -o song.mp3
-    plyr delete 42 -y
+    plyr list                                    # no auth needed
+    plyr my-tracks                               # requires auth
+    plyr upload track.mp3 "My Song"              # requires auth
+    plyr download 42 -o song.mp3                 # requires auth
 """
 
 
@@ -203,6 +237,14 @@ def main() -> None:
             if idx + 1 < len(args):
                 limit = int(args[idx + 1])
         cmd_list(limit=limit)
+
+    elif cmd == "my-tracks":
+        limit = 20
+        if "--limit" in args:
+            idx = args.index("--limit")
+            if idx + 1 < len(args):
+                limit = int(args[idx + 1])
+        cmd_my_tracks(limit=limit)
 
     elif cmd == "upload":
         if len(args) < 3:
