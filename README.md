@@ -95,8 +95,6 @@ client = PlyrClient(
 
 ## API reference
 
-### `PlyrClient` / `AsyncPlyrClient`
-
 | method | auth | description |
 |--------|------|-------------|
 | `list_tracks(limit=50)` | no | list all public tracks |
@@ -106,35 +104,6 @@ client = PlyrClient(
 | `download(track_id, output=None)` | yes | download track audio |
 | `delete(track_id)` | yes | delete a track |
 | `me()` | yes | get current user info |
-
-### types
-
-```python
-@dataclass
-class Track:
-    id: int
-    title: str
-    file_id: str
-    file_type: str
-    artist: str
-    artist_handle: str
-    play_count: int
-    like_count: int
-    album: Album | None
-    image_url: str | None
-    created_at: datetime | None
-
-@dataclass
-class Album:
-    id: int
-    title: str
-    slug: str
-
-@dataclass
-class UploadResult:
-    track_id: int
-    title: str
-```
 
 ## environment variables
 
