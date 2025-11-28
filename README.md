@@ -29,15 +29,19 @@ export PLYR_TOKEN="your_token_here"
 ### CLI
 
 ```bash
+# install
+uvx plyrfm --help
+# or: uv tool install plyrfm
+
 # public (no auth required)
-plyr list                        # list all tracks
+plyrfm list                        # list all tracks
 
 # authenticated (requires PLYR_TOKEN)
-plyr my-tracks                   # list your tracks
-plyr upload track.mp3 "My Song"  # upload
-plyr download 42 -o song.mp3     # download
-plyr delete 42 -y                # delete
-plyr me                          # check auth
+plyrfm my-tracks                   # list your tracks
+plyrfm upload track.mp3 "My Song"  # upload
+plyrfm download 42 -o song.mp3     # download
+plyrfm delete 42 -y                # delete
+plyrfm me                          # check auth
 ```
 
 ### sync client
