@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Annotated
 
 import httpx
 from rich.console import Console

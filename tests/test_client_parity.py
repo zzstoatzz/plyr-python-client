@@ -46,7 +46,7 @@ def test_methods_have_same_signatures():
         )
 
         for (sync_name, sync_param), (async_name, async_param) in zip(
-            sync_params, async_params
+            sync_params, async_params, strict=True
         ):
             assert sync_name == async_name, (
                 f"{method_name}: param name mismatch {sync_name} vs {async_name}"
