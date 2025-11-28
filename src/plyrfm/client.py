@@ -29,10 +29,7 @@ class _BaseClient:
     def _auth_headers(self) -> dict[str, str]:
         """get auth headers. raises if no token configured."""
         if not self._token:
-            msg = (
-                "authentication required. "
-                "set PLYR_TOKEN or pass token= to client"
-            )
+            msg = "authentication required. set PLYR_TOKEN or pass token= to client"
             raise ValueError(msg)
         return {"Authorization": f"Bearer {self._token}"}
 
@@ -190,24 +187,25 @@ class PlyrClient(_BaseClient):
         if album is not None:
             data["album"] = album
 
-        files = {}
         if image is not None:
-            image = Path(image)
-            if not image.exists():
-                msg = f"image not found: {image}"
+            image_path = Path(image)
+            if not image_path.exists():
+                msg = f"image not found: {image_path}"
                 raise FileNotFoundError(msg)
-            files["image"] = (image.name, open(image, "rb"))
-
-        try:
+            with open(image_path, "rb") as f:
+                files = {"image": (image_path.name, f)}
+                response = self._client.patch(
+                    self._url(f"/tracks/{track_id}"),
+                    headers=self._auth_headers,
+                    data=data if data else None,
+                    files=files,
+                )
+        else:
             response = self._client.patch(
                 self._url(f"/tracks/{track_id}"),
                 headers=self._auth_headers,
                 data=data if data else None,
-                files=files if files else None,
             )
-        finally:
-            for _, f in files.values():
-                f.close()
 
         self._handle_error_response(response)
         return Track.from_dict(response.json())
@@ -412,24 +410,25 @@ class AsyncPlyrClient(_BaseClient):
         if album is not None:
             data["album"] = album
 
-        files = {}
         if image is not None:
-            image = Path(image)
-            if not image.exists():
-                msg = f"image not found: {image}"
+            image_path = Path(image)
+            if not image_path.exists():
+                msg = f"image not found: {image_path}"
                 raise FileNotFoundError(msg)
-            files["image"] = (image.name, open(image, "rb"))
-
-        try:
+            with open(image_path, "rb") as f:
+                files = {"image": (image_path.name, f)}
+                response = await self._client.patch(
+                    self._url(f"/tracks/{track_id}"),
+                    headers=self._auth_headers,
+                    data=data if data else None,
+                    files=files,
+                )
+        else:
             response = await self._client.patch(
                 self._url(f"/tracks/{track_id}"),
                 headers=self._auth_headers,
                 data=data if data else None,
-                files=files if files else None,
             )
-        finally:
-            for _, f in files.values():
-                f.close()
 
         self._handle_error_response(response)
         return Track.from_dict(response.json())

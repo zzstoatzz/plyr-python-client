@@ -59,10 +59,7 @@ class Track:
 
         created_at = None
         if created_str := data.get("created_at"):
-            try:
-                created_at = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
-            except (ValueError, AttributeError):
-                pass
+            created_at = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
 
         return cls(
             id=data["id"],
