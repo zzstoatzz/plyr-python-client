@@ -192,10 +192,10 @@ def cmd_me() -> None:
 # -----------------------------------------------------------------------------
 
 USAGE = """\
-[bold]plyr[/] - plyr.fm CLI
+[bold]plyrfm[/] - plyr.fm CLI
 
 [bold]usage:[/]
-    plyr <command> [options]
+    plyrfm <command> [options]
 
 [bold]public commands (no auth):[/]
     list [--limit N]              list all tracks
@@ -213,10 +213,10 @@ USAGE = """\
     2. export PLYR_TOKEN="your_token"
 
 [bold]examples:[/]
-    plyr list                                    # no auth needed
-    plyr my-tracks                               # requires auth
-    plyr upload track.mp3 "My Song"              # requires auth
-    plyr download 42 -o song.mp3                 # requires auth
+    plyrfm list                                  # no auth needed
+    plyrfm my-tracks                             # requires auth
+    plyrfm upload track.mp3 "My Song"            # requires auth
+    plyrfm download 42 -o song.mp3               # requires auth
 """
 
 

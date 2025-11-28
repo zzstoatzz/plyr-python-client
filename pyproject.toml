@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [project.scripts]
-plyr = "plyrfm.cli:main"
+plyrfm = "plyrfm.cli:main"
 
 [dependency-groups]
 dev = [
