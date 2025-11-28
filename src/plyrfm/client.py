@@ -175,6 +175,43 @@ class PlyrClient(_BaseClient):
 
         return self._poll_upload(upload_id, title, timeout=timeout)
 
+    def update_track(
+        self,
+        track_id: int,
+        *,
+        title: str | None = None,
+        album: str | None = None,
+        image: Path | str | None = None,
+    ) -> Track:
+        """update track metadata. requires auth + ownership."""
+        data: dict[str, str] = {}
+        if title is not None:
+            data["title"] = title
+        if album is not None:
+            data["album"] = album
+
+        files = {}
+        if image is not None:
+            image = Path(image)
+            if not image.exists():
+                msg = f"image not found: {image}"
+                raise FileNotFoundError(msg)
+            files["image"] = (image.name, open(image, "rb"))
+
+        try:
+            response = self._client.patch(
+                self._url(f"/tracks/{track_id}"),
+                headers=self._auth_headers,
+                data=data if data else None,
+                files=files if files else None,
+            )
+        finally:
+            for _, f in files.values():
+                f.close()
+
+        self._handle_error_response(response)
+        return Track.from_dict(response.json())
+
     def _poll_upload(
         self,
         upload_id: str,
@@ -359,6 +396,43 @@ class AsyncPlyrClient(_BaseClient):
             raise ValueError(msg)
 
         return await self._poll_upload(upload_id, title, timeout=timeout)
+
+    async def update_track(
+        self,
+        track_id: int,
+        *,
+        title: str | None = None,
+        album: str | None = None,
+        image: Path | str | None = None,
+    ) -> Track:
+        """update track metadata. requires auth + ownership."""
+        data: dict[str, str] = {}
+        if title is not None:
+            data["title"] = title
+        if album is not None:
+            data["album"] = album
+
+        files = {}
+        if image is not None:
+            image = Path(image)
+            if not image.exists():
+                msg = f"image not found: {image}"
+                raise FileNotFoundError(msg)
+            files["image"] = (image.name, open(image, "rb"))
+
+        try:
+            response = await self._client.patch(
+                self._url(f"/tracks/{track_id}"),
+                headers=self._auth_headers,
+                data=data if data else None,
+                files=files if files else None,
+            )
+        finally:
+            for _, f in files.values():
+                f.close()
+
+        self._handle_error_response(response)
+        return Track.from_dict(response.json())
 
     async def _poll_upload(
         self,
