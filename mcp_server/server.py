@@ -21,87 +21,76 @@ mcp.add_middleware(PlyrAuthMiddleware())
 
 @mcp.prompt("upload_guide")
 def upload_guide() -> str:
-    """guide for uploading tracks via the plyr CLI."""
+    """instructions for helping users upload tracks via CLI."""
     return """\
-# uploading tracks to plyr.fm
+# helping users upload tracks to plyr.fm
 
-if you have terminal access, use the plyr CLI:
+when a user wants to upload music, guide them through these steps:
 
-## setup
-1. get a token at https://plyr.fm/portal -> "developer tokens"
-2. export PLYR_TOKEN="your_token"
+## prerequisites
+- they need an account at plyr.fm
+- they need an artist profile (created at plyr.fm/portal)
+- they need a developer token (plyr.fm/portal -> "developer tokens")
 
-## upload
+## CLI commands to suggest
+
 ```bash
-# basic upload
-plyr upload path/to/track.mp3 "My Song Title"
+# set token (user does this once)
+export PLYR_TOKEN="their_token"
 
-# with album
-plyr upload track.mp3 "My Song" --album "My Album"
+# upload a track
+plyrfm upload path/to/track.mp3 "Song Title"
+
+# upload with album
+plyrfm upload track.mp3 "Song Title" --album "Album Name"
 ```
 
-## other useful commands
-```bash
-plyr my-tracks          # list your tracks
-plyr download 42        # download track by id
-plyr delete 42          # delete track by id
-```
+## supported formats
+mp3, wav, m4a
 
-## notes
-- supported formats: mp3, wav, flac, aac, ogg
-- requires an artist profile (create at plyr.fm/portal)
-- tracks are processed async - may take a moment to appear
+## common issues
+- "artist_profile_required" -> user needs to create artist profile at plyr.fm/portal
+- "scope_upgrade_required" -> user needs to regenerate their token
 """
 
 
 @mcp.prompt("download_guide")
 def download_guide() -> str:
-    """guide for downloading tracks via the plyr CLI or SDK."""
+    """instructions for helping users download tracks via CLI or SDK."""
     return """\
-# downloading tracks from plyr.fm
+# helping users download tracks from plyr.fm
+
+when a user wants to download their music, guide them through these options:
 
 ## CLI usage
 
 ```bash
-# setup
-export PLYR_TOKEN="your_token"
+# user sets their token once
+export PLYR_TOKEN="their_token"
 
-# download a single track by ID
-plyr download 42
+# download by track ID
+plyrfm download 42
 
-# download to a specific file
-plyr download 42 --output ~/Music/song.mp3
+# download to specific path
+plyrfm download 42 --output ~/Music/song.mp3
 ```
 
-## python SDK usage
+## SDK usage (if user is writing python code)
 
 ```python
 from plyrfm import PlyrClient
 
-client = PlyrClient(token="your_token")
+# user provides their token
+client = PlyrClient(token="their_token")
 
-# download a single track
+# download returns the saved path
 path = client.download(track_id=42)
-print(f"saved to: {path}")
-
-# download to specific location
 path = client.download(track_id=42, output="~/Music/song.mp3")
 ```
 
-## async SDK usage
-
-```python
-from plyrfm import AsyncPlyrClient
-
-async with AsyncPlyrClient(token="your_token") as client:
-    path = await client.download(track_id=42)
-    print(f"saved to: {path}")
-```
-
 ## notes
-- requires authentication (PLYR_TOKEN env var or token= parameter)
-- file is saved with original format (mp3, flac, etc.)
-- default filename is based on track title
+- download requires authentication
+- use the my_tracks tool to help user find their track IDs
 """
 
 
@@ -111,60 +100,29 @@ async with AsyncPlyrClient(token="your_token") as client:
 
 
 @mcp.tool
-async def list_tracks(limit: int = 20) -> list[dict]:
-    """list public tracks on plyr.fm. no auth required.
-
-    args:
-        limit: max tracks to return (default 20)
-
-    returns:
-        list of track metadata dicts
-    """
+async def list_tracks(limit: int = 20) -> list[Track]:
+    """list public tracks on plyr.fm. no auth required."""
     async with get_plyr_client() as client:
-        tracks = await client.list_tracks(limit=limit)
-        return [_track_to_dict(t) for t in tracks]
+        return await client.list_tracks(limit=limit)
 
 
 @mcp.tool
-async def get_track(track_id: int) -> dict:
-    """get a single track by ID. no auth required.
-
-    args:
-        track_id: the track's ID
-
-    returns:
-        track metadata dict
-    """
+async def get_track(track_id: int) -> Track:
+    """get a single track by ID. no auth required."""
     async with get_plyr_client() as client:
-        track = await client.get_track(track_id)
-        return _track_to_dict(track)
+        return await client.get_track(track_id)
 
 
 @mcp.tool
-async def my_tracks(limit: int = 20) -> list[dict]:
-    """list your own tracks. requires auth (PLYR_TOKEN or x-plyr-token header).
-
-    args:
-        limit: max tracks to return (default 20)
-
-    returns:
-        list of track metadata dicts
-    """
+async def my_tracks(limit: int = 20) -> list[Track]:
+    """list your own tracks. requires auth (PLYR_TOKEN or x-plyr-token header)."""
     async with get_plyr_client(require_auth=True) as client:
-        tracks = await client.my_tracks(limit=limit)
-        return [_track_to_dict(t) for t in tracks]
+        return await client.my_tracks(limit=limit)
 
 
 @mcp.tool
 async def delete_track(track_id: int) -> dict:
-    """delete a track. requires auth (PLYR_TOKEN or x-plyr-token header) and ownership.
-
-    args:
-        track_id: the track's ID
-
-    returns:
-        confirmation dict
-    """
+    """delete a track. requires auth and ownership."""
     async with get_plyr_client(require_auth=True) as client:
         await client.delete(track_id)
         return {"deleted": track_id}
@@ -172,11 +130,7 @@ async def delete_track(track_id: int) -> dict:
 
 @mcp.tool
 async def whoami() -> dict:
-    """get current authenticated user info. requires auth (PLYR_TOKEN or x-plyr-token header).
-
-    returns:
-        dict with did and handle
-    """
+    """get current authenticated user info. requires auth."""
     async with get_plyr_client(require_auth=True) as client:
         return await client.me()
 
@@ -210,25 +164,6 @@ artist: {t.artist} (@{t.artist_handle})
 plays: {t.play_count}
 likes: {t.like_count}{album_info}
 """
-
-
-# -----------------------------------------------------------------------------
-# helpers
-# -----------------------------------------------------------------------------
-
-
-def _track_to_dict(track: Track) -> dict:
-    """convert Track to a serializable dict."""
-    return {
-        "id": track.id,
-        "title": track.title,
-        "artist": track.artist,
-        "artist_handle": track.artist_handle,
-        "play_count": track.play_count,
-        "like_count": track.like_count,
-        "album": track.album.title if track.album else None,
-        "image_url": track.image_url,
-    }
 
 
 # -----------------------------------------------------------------------------

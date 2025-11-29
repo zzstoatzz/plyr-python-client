@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 
 @dataclass
@@ -44,7 +45,7 @@ class Track:
     created_at: datetime | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> Track:
+    def from_dict(cls, data: dict[str, Any]) -> Track:
         """create track from API response dict."""
         album_data = data.get("album")
         album = None
