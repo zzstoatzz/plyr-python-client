@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from fastmcp import FastMCP
-
-from mcp_server.client import get_plyr_client
-from mcp_server.middleware import PlyrAuthMiddleware
 from plyrfm import AsyncPlyrClient, Track
+
+from plyrfm_mcp.client import get_plyr_client
+from plyrfm_mcp.filterable import filterable
+from plyrfm_mcp.middleware import PlyrAuthMiddleware
 
 mcp = FastMCP("plyr.fm")
 
@@ -100,6 +101,7 @@ path = client.download(track_id=42, output="~/Music/song.mp3")
 
 
 @mcp.tool
+@filterable
 async def list_tracks(limit: int = 20) -> list[Track]:
     """list public tracks on plyr.fm. no auth required."""
     async with get_plyr_client() as client:
@@ -114,6 +116,7 @@ async def get_track(track_id: int) -> Track:
 
 
 @mcp.tool
+@filterable
 async def my_tracks(limit: int = 20) -> list[Track]:
     """list your own tracks. requires auth (PLYR_TOKEN or x-plyr-token header)."""
     async with get_plyr_client(require_auth=True) as client:
@@ -121,7 +124,7 @@ async def my_tracks(limit: int = 20) -> list[Track]:
 
 
 @mcp.tool
-async def delete_track(track_id: int) -> dict:
+async def delete_track(track_id: int) -> dict[str, int]:
     """delete a track. requires auth and ownership."""
     async with get_plyr_client(require_auth=True) as client:
         await client.delete(track_id)
@@ -129,7 +132,7 @@ async def delete_track(track_id: int) -> dict:
 
 
 @mcp.tool
-async def whoami() -> dict:
+async def whoami() -> dict[str, str]:
     """get current authenticated user info. requires auth."""
     async with get_plyr_client(require_auth=True) as client:
         return await client.me()

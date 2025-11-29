@@ -1,12 +1,12 @@
-name: Publish plyrfm to PyPI
+name: Publish packages to PyPI
 on:
   release:
     types: [published]
   workflow_dispatch:
 
 jobs:
-  pypi-publish:
-    name: Upload to PyPI
+  publish-plyrfm:
+    name: Publish plyrfm
     runs-on: ubuntu-latest
     permissions:
       id-token: write # For PyPI's trusted publishing
@@ -19,8 +19,29 @@ jobs:
       - name: "Install uv"
         uses: astral-sh/setup-uv@v7
 
-      - name: Build
-        run: uv build
+      - name: Build plyrfm
+        run: uv build --package plyrfm
+
+      - name: Publish to PyPI
+        run: uv publish -v dist/*
+
+  publish-plyrfm-mcp:
+    name: Publish plyrfm-mcp
+    runs-on: ubuntu-latest
+    needs: publish-plyrfm  # mcp depends on plyrfm
+    permissions:
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build plyrfm-mcp
+        run: uv build --package plyrfm-mcp
 
       - name: Publish to PyPI
         run: uv publish -v dist/*
