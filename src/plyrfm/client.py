@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from uuid import UUID
 
 import httpx
 
@@ -100,7 +99,7 @@ class PlyrClient(_BaseClient):
         data = response.json()
         return [Track.from_dict(t) for t in data.get("tracks", [])]
 
-    def get_track(self, track_id: UUID) -> Track:
+    def get_track(self, track_id: int) -> Track:
         """get a single track by ID. no auth required."""
         response = self._client.get(
             self._url(f"/tracks/{track_id}"),
@@ -175,7 +174,7 @@ class PlyrClient(_BaseClient):
 
     def update_track(
         self,
-        track_id: UUID,
+        track_id: int,
         *,
         title: str | None = None,
         album: str | None = None,
@@ -237,7 +236,7 @@ class PlyrClient(_BaseClient):
         msg = "upload stream ended without completion"
         raise ValueError(msg)
 
-    def delete(self, track_id: UUID) -> None:
+    def delete(self, track_id: int) -> None:
         """delete a track. requires auth + ownership."""
         response = self._client.delete(
             self._url(f"/tracks/{track_id}"),
@@ -247,7 +246,7 @@ class PlyrClient(_BaseClient):
 
     def download(
         self,
-        track_id: UUID,
+        track_id: int,
         output: Path | str | None = None,
         *,
         timeout: float = 300.0,
@@ -323,7 +322,7 @@ class AsyncPlyrClient(_BaseClient):
         data = response.json()
         return [Track.from_dict(t) for t in data.get("tracks", [])]
 
-    async def get_track(self, track_id: UUID) -> Track:
+    async def get_track(self, track_id: int) -> Track:
         """get a single track by ID. no auth required."""
         response = await self._client.get(
             self._url(f"/tracks/{track_id}"),
@@ -398,7 +397,7 @@ class AsyncPlyrClient(_BaseClient):
 
     async def update_track(
         self,
-        track_id: UUID,
+        track_id: int,
         *,
         title: str | None = None,
         album: str | None = None,
@@ -460,7 +459,7 @@ class AsyncPlyrClient(_BaseClient):
         msg = "upload stream ended without completion"
         raise ValueError(msg)
 
-    async def delete(self, track_id: UUID) -> None:
+    async def delete(self, track_id: int) -> None:
         """delete a track. requires auth + ownership."""
         response = await self._client.delete(
             self._url(f"/tracks/{track_id}"),
@@ -470,7 +469,7 @@ class AsyncPlyrClient(_BaseClient):
 
     async def download(
         self,
-        track_id: UUID,
+        track_id: int,
         output: Path | str | None = None,
         *,
         timeout: float = 300.0,

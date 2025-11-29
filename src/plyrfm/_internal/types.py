@@ -33,9 +33,9 @@ class Album:
 class Track:
     """track metadata."""
 
-    id: UUID
+    id: int
     title: str
-    file_id: UUID
+    file_id: str
     file_type: str
     artist: str  # display name or handle
     artist_handle: str
@@ -64,9 +64,9 @@ class Track:
             created_at = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
 
         return cls(
-            id=UUID(data["id"]),
+            id=data["id"],
             title=data["title"],
-            file_id=UUID(data["file_id"]),
+            file_id=data["file_id"],
             file_type=data.get("file_type", "mp3"),
             artist=data.get("artist", ""),
             artist_handle=data.get("artist_handle", ""),
@@ -82,5 +82,5 @@ class Track:
 class UploadResult:
     """result of a track upload."""
 
-    track_id: UUID
+    track_id: int
     title: str

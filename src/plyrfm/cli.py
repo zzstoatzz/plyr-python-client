@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from uuid import UUID
 
 import httpx
 from rich.console import Console
@@ -122,7 +121,7 @@ def cmd_upload(file: str, title: str, album: str | None = None) -> None:
     console.print(f"[green]uploaded:[/] track {result.track_id}")
 
 
-def cmd_download(track_id: UUID, output: str | None = None) -> None:
+def cmd_download(track_id: int, output: str | None = None) -> None:
     """download a track (requires auth)."""
     client = _get_client(require_auth=True)
 
@@ -141,7 +140,7 @@ def cmd_download(track_id: UUID, output: str | None = None) -> None:
     console.print(f"[green]saved:[/] {result} ({size_mb:.1f} MB)")
 
 
-def cmd_delete(track_id: UUID, yes: bool = False) -> None:
+def cmd_delete(track_id: int, yes: bool = False) -> None:
     """delete a track (requires auth)."""
     client = _get_client(require_auth=True)
 
@@ -261,7 +260,7 @@ def main() -> None:
     elif cmd == "download":
         if len(args) < 2:
             _error("usage: plyrfm download <id> [--output FILE]")
-        track_id = UUID(args[1])
+        track_id = int(args[1])
         output = None
         if "--output" in args:
             idx = args.index("--output")
@@ -276,7 +275,7 @@ def main() -> None:
     elif cmd == "delete":
         if len(args) < 2:
             _error("usage: plyrfm delete <id> [--yes]")
-        track_id = UUID(args[1])
+        track_id = int(args[1])
         yes = "--yes" in args or "-y" in args
         cmd_delete(track_id, yes)
 
