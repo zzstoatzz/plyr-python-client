@@ -1,127 +1,55 @@
-# plyrfm
+# plyr-python-client
 
-python sdk for [plyr.fm](https://plyr.fm) - music streaming on AT Protocol
+python packages for [plyr.fm](https://plyr.fm).
 
-## installation
+## packages
 
-```bash
-uv add plyrfm
-# or
-pip install plyrfm
-```
-
-## authentication
-
-some operations (listing public tracks, getting a track by ID) work without auth.
-
-for authenticated operations (upload, download, delete, my-tracks):
-
-1. go to [plyr.fm/portal](https://plyr.fm/portal) -> "your data" -> "developer tokens"
-2. create a token (you'll authorize via your PDS)
-3. set it in your environment:
-
-```bash
-export PLYR_TOKEN="your_token_here"
-```
+| package | description | install |
+|---------|-------------|---------|
+| [plyrfm](./packages/plyrfm) | SDK + CLI | `uv add plyrfm` |
+| [plyrfm-mcp](./packages/plyrfm-mcp) | MCP server for LLM clients | `uv add plyrfm-mcp` |
 
 ## quick start
+
+### SDK
+
+```python
+from plyrfm import PlyrClient
+
+client = PlyrClient()
+tracks = client.list_tracks()
+
+# authenticated
+client = PlyrClient(token="your_token")
+client.upload("song.mp3", "My Song")
+```
 
 ### CLI
 
 ```bash
-# install
-uvx plyrfm --help
-# or: uv tool install plyrfm
-
-# public (no auth required)
-plyrfm list                        # list all tracks
-
-# authenticated (requires PLYR_TOKEN)
-plyrfm my-tracks                   # list your tracks
-plyrfm upload track.mp3 "My Song"  # upload
-plyrfm download 42 -o song.mp3     # download
-plyrfm delete 42 -y                # delete
-plyrfm me                          # check auth
+export PLYR_TOKEN="your_token"
+plyrfm list
+plyrfm upload track.mp3 "Song Title"
 ```
 
-### sync client
+### MCP server
 
-```python
-from plyrfm import PlyrClient
+use the hosted server with claude code:
 
-# public operations (no auth)
-client = PlyrClient()
-tracks = client.list_tracks()
-track = client.get_track(42)
-
-# authenticated operations
-client = PlyrClient(token="your_token")  # or set PLYR_TOKEN
-my_tracks = client.my_tracks()
-result = client.upload("song.mp3", "My Song")
-client.delete(result.track_id)
+```bash
+claude mcp add-json plyr-fm '{"type": "http", "url": "https://plyrfm.fastmcp.app/mcp", "headers": {"x-plyr-token": "YOUR_TOKEN"}}'
 ```
 
-### async client
+or run your own server locally:
 
-```python
-import asyncio
-from plyrfm import AsyncPlyrClient
-
-async def main():
-    # public (no auth)
-    async with AsyncPlyrClient() as client:
-        tracks = await client.list_tracks()
-
-    # authenticated
-    async with AsyncPlyrClient(token="your_token") as client:
-        await client.upload("song.mp3", "My Song")
-
-asyncio.run(main())
+```bash
+PLYR_TOKEN="your_token" uvx plyrfm-mcp
 ```
 
-### explicit configuration
+## auth
 
-```python
-from plyrfm import PlyrClient
-
-# pass token directly
-client = PlyrClient(token="your_token")
-
-# use staging API
-client = PlyrClient(api_url="https://api-stg.plyr.fm")
-
-# both
-client = PlyrClient(
-    token="your_token",
-    api_url="https://api-stg.plyr.fm",
-)
-```
-
-## API reference
-
-| method | auth | description |
-|--------|------|-------------|
-| `list_tracks(limit=50)` | no | list all public tracks |
-| `get_track(track_id)` | no | get track by ID |
-| `my_tracks(limit=50)` | yes | list your tracks |
-| `upload(file, title, album=None)` | yes | upload a track |
-| `update_track(track_id, title=None, album=None, image=None)` | yes | update track metadata |
-| `download(track_id, output=None)` | yes | download track audio |
-| `delete(track_id)` | yes | delete a track |
-| `me()` | yes | get current user info |
-
-## environment variables
-
-| variable | default | description |
-|----------|---------|-------------|
-| `PLYR_TOKEN` | - | developer token (for authenticated operations) |
-| `PLYR_API_URL` | `https://api.plyr.fm` | API base URL |
-
-## requirements
-
-- python 3.10+
-- developer token from plyr.fm
+get a developer token at [plyr.fm/portal](https://plyr.fm/portal) -> "developer tokens"
 
 ## license
 
-MIT
+see [LICENSE](./LICENSE).
