@@ -43,6 +43,7 @@ class Track:
     like_count: int = 0
     album: Album | None = None
     image_url: str | None = None
+    audio_url: str | None = None
     created_at: datetime | None = None
 
     @classmethod
@@ -74,6 +75,7 @@ class Track:
             like_count=data.get("like_count", 0),
             album=album,
             image_url=data.get("image_url"),
+            audio_url=data.get("r2_url"),
             created_at=created_at,
         )
 
