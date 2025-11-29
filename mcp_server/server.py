@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from fastmcp import FastMCP
 
 from mcp_server.client import get_plyr_client
@@ -107,7 +109,7 @@ async def list_tracks(limit: int = 20) -> list[Track]:
 
 
 @mcp.tool
-async def get_track(track_id: int) -> Track:
+async def get_track(track_id: UUID) -> Track:
     """get a single track by ID. no auth required."""
     async with get_plyr_client() as client:
         return await client.get_track(track_id)
@@ -121,11 +123,11 @@ async def my_tracks(limit: int = 20) -> list[Track]:
 
 
 @mcp.tool
-async def delete_track(track_id: int) -> dict:
+async def delete_track(track_id: UUID) -> dict:
     """delete a track. requires auth and ownership."""
     async with get_plyr_client(require_auth=True) as client:
         await client.delete(track_id)
-        return {"deleted": track_id}
+        return {"deleted": str(track_id)}
 
 
 @mcp.tool
@@ -152,7 +154,7 @@ async def tracks_resource() -> str:
 
 
 @mcp.resource("plyr://tracks/{track_id}")
-async def track_resource(track_id: int) -> str:
+async def track_resource(track_id: UUID) -> str:
     """get track details by ID."""
     async with AsyncPlyrClient() as client:
         t = await client.get_track(track_id)

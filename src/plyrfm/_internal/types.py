@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 
 @dataclass
@@ -21,7 +22,7 @@ class Artist:
 class Album:
     """album metadata."""
 
-    id: int
+    id: UUID
     title: str
     slug: str
     description: str | None = None
@@ -32,9 +33,9 @@ class Album:
 class Track:
     """track metadata."""
 
-    id: int
+    id: UUID
     title: str
-    file_id: str
+    file_id: UUID
     file_type: str
     artist: str  # display name or handle
     artist_handle: str
@@ -51,7 +52,7 @@ class Track:
         album = None
         if isinstance(album_data, dict):
             album = Album(
-                id=album_data["id"],
+                id=UUID(album_data["id"]),
                 title=album_data["title"],
                 slug=album_data["slug"],
                 description=album_data.get("description"),
@@ -63,9 +64,9 @@ class Track:
             created_at = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
 
         return cls(
-            id=data["id"],
+            id=UUID(data["id"]),
             title=data["title"],
-            file_id=data["file_id"],
+            file_id=UUID(data["file_id"]),
             file_type=data.get("file_type", "mp3"),
             artist=data.get("artist", ""),
             artist_handle=data.get("artist_handle", ""),
@@ -81,5 +82,5 @@ class Track:
 class UploadResult:
     """result of a track upload."""
 
-    track_id: int
+    track_id: UUID
     title: str
