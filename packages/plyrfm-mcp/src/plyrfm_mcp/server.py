@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastmcp import FastMCP
-from plyrfm import AsyncPlyrClient, Track
+from plyrfm import Track
 
 from plyrfm_mcp.client import get_plyr_client
 from plyrfm_mcp.filterable import filterable
@@ -131,42 +131,20 @@ async def delete_track(track_id: int) -> dict[str, int]:
         return {"deleted": track_id}
 
 
-@mcp.tool
-async def whoami() -> dict[str, str]:
-    """get current authenticated user info. requires auth."""
-    async with get_plyr_client(require_auth=True) as client:
-        return await client.me()
-
-
 # -----------------------------------------------------------------------------
 # resources
 # -----------------------------------------------------------------------------
 
 
-@mcp.resource("plyr://tracks")
-async def tracks_resource() -> str:
-    """list of recent public tracks."""
-    async with AsyncPlyrClient() as client:
-        tracks = await client.list_tracks(limit=10)
-        lines = ["# recent tracks on plyr.fm\n"]
-        for t in tracks:
-            lines.append(f"- [{t.id}] {t.title} by {t.artist} ({t.play_count} plays)")
-        return "\n".join(lines)
-
-
-@mcp.resource("plyr://tracks/{track_id}")
-async def track_resource(track_id: int) -> str:
-    """get track details by ID."""
-    async with AsyncPlyrClient() as client:
-        t = await client.get_track(track_id)
-        album_info = f" from album '{t.album.title}'" if t.album else ""
-        return f"""\
-# {t.title}
-
-artist: {t.artist} (@{t.artist_handle})
-plays: {t.play_count}
-likes: {t.like_count}{album_info}
-"""
+@mcp.resource("plyr://me")
+async def me_resource() -> str:
+    """current authenticated user identity."""
+    try:
+        async with get_plyr_client(require_auth=True) as client:
+            info = await client.me()
+            return f"authenticated as {info.get('handle', 'unknown')} ({info.get('did', 'unknown')})"
+    except ValueError:
+        return "not authenticated - set PLYR_TOKEN or pass x-plyr-token header"
 
 
 # -----------------------------------------------------------------------------
