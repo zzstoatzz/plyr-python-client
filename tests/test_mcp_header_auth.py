@@ -2,8 +2,8 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from mcp_server.client import get_plyr_client
-from mcp_server.middleware import PlyrAuthMiddleware
+from plyrfm_mcp.client import get_plyr_client
+from plyrfm_mcp.middleware import PlyrAuthMiddleware
 
 
 async def test_middleware_extracts_token_from_headers():
@@ -16,7 +16,7 @@ async def test_middleware_extracts_token_from_headers():
 
     mock_call_next = AsyncMock(return_value="result")
 
-    with patch("mcp_server.middleware.get_http_headers") as mock_get_http_headers:
+    with patch("plyrfm_mcp.middleware.get_http_headers") as mock_get_http_headers:
         mock_get_http_headers.return_value = {
             "x-plyr-token": "test-token-12345",
         }
@@ -40,7 +40,7 @@ async def test_middleware_handles_missing_headers():
     mock_context.fastmcp_context = mock_fastmcp_ctx
     mock_call_next = AsyncMock(return_value="result")
 
-    with patch("mcp_server.middleware.get_http_headers") as mock_get_http_headers:
+    with patch("plyrfm_mcp.middleware.get_http_headers") as mock_get_http_headers:
         # no plyr-specific headers
         mock_get_http_headers.return_value = {}
 
@@ -60,7 +60,7 @@ async def test_middleware_handles_stdio_mode():
     mock_context.fastmcp_context = mock_fastmcp_ctx
     mock_call_next = AsyncMock(return_value="result")
 
-    with patch("mcp_server.middleware.get_http_headers") as mock_get_http_headers:
+    with patch("plyrfm_mcp.middleware.get_http_headers") as mock_get_http_headers:
         # simulate stdio mode where get_http_headers returns empty dict
         mock_get_http_headers.return_value = {}
 
@@ -81,7 +81,7 @@ async def test_get_plyr_client_with_context_token():
             "fastmcp.server.dependencies.get_context",
             return_value=mock_context,
         ),
-        patch("mcp_server.client.AsyncPlyrClient") as mock_client_cls,
+        patch("plyrfm_mcp.client.AsyncPlyrClient") as mock_client_cls,
     ):
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -102,7 +102,7 @@ async def test_get_plyr_client_fallback_to_environment():
             "fastmcp.server.dependencies.get_context",
             side_effect=RuntimeError("No active context found."),
         ),
-        patch("mcp_server.client.AsyncPlyrClient") as mock_client_cls,
+        patch("plyrfm_mcp.client.AsyncPlyrClient") as mock_client_cls,
     ):
         mock_client = AsyncMock()
         mock_client._token = "env-token"  # simulate env token
@@ -127,7 +127,7 @@ async def test_get_plyr_client_fallback_when_no_token_in_context():
             "fastmcp.server.dependencies.get_context",
             return_value=mock_context,
         ),
-        patch("mcp_server.client.AsyncPlyrClient") as mock_client_cls,
+        patch("plyrfm_mcp.client.AsyncPlyrClient") as mock_client_cls,
     ):
         mock_client = AsyncMock()
         mock_client._token = "env-token"
@@ -152,7 +152,7 @@ async def test_get_plyr_client_require_auth_raises_when_no_token():
             "fastmcp.server.dependencies.get_context",
             return_value=mock_context,
         ),
-        patch("mcp_server.client.AsyncPlyrClient") as mock_client_cls,
+        patch("plyrfm_mcp.client.AsyncPlyrClient") as mock_client_cls,
     ):
         mock_client = AsyncMock()
         mock_client._token = None  # no env token either
