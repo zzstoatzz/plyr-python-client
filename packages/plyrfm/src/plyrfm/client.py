@@ -3,12 +3,22 @@
 from __future__ import annotations
 
 import json
+from importlib.metadata import version
 from pathlib import Path
 
 import httpx
 
 from plyrfm._internal.config import Settings, get_settings
 from plyrfm._internal.types import Track, UploadResult
+
+
+def _get_user_agent(client_name: str = "plyrfm") -> str:
+    """get user-agent string for API requests."""
+    try:
+        v = version(client_name)
+    except Exception:
+        v = "unknown"
+    return f"{client_name}/{v}"
 
 
 class _BaseClient:
@@ -71,9 +81,11 @@ class PlyrClient(_BaseClient):
         api_url: str | None = None,
         settings: Settings | None = None,
         timeout: float = 30.0,
+        user_agent: str | None = None,
     ) -> None:
         super().__init__(token=token, api_url=api_url, settings=settings)
-        self._client = httpx.Client(timeout=timeout)
+        headers = {"User-Agent": user_agent or _get_user_agent()}
+        self._client = httpx.Client(timeout=timeout, headers=headers)
 
     def __enter__(self) -> PlyrClient:
         return self
@@ -294,9 +306,11 @@ class AsyncPlyrClient(_BaseClient):
         api_url: str | None = None,
         settings: Settings | None = None,
         timeout: float = 30.0,
+        user_agent: str | None = None,
     ) -> None:
         super().__init__(token=token, api_url=api_url, settings=settings)
-        self._client = httpx.AsyncClient(timeout=timeout)
+        headers = {"User-Agent": user_agent or _get_user_agent()}
+        self._client = httpx.AsyncClient(timeout=timeout, headers=headers)
 
     async def __aenter__(self) -> AsyncPlyrClient:
         return self

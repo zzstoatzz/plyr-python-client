@@ -5,10 +5,20 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from importlib.metadata import version
 
 from plyrfm import AsyncPlyrClient
 
 logger = logging.getLogger(__name__)
+
+
+def _get_user_agent() -> str:
+    """get user-agent string identifying MCP server."""
+    try:
+        v = version("plyrfm-mcp")
+    except Exception:
+        v = "unknown"
+    return f"plyrfm-mcp/{v}"
 
 
 def _get_token_from_context() -> str | None:
@@ -59,13 +69,15 @@ async def get_plyr_client(require_auth: bool = False) -> AsyncIterator[AsyncPlyr
     """
     token = _get_token_from_context()
 
+    user_agent = _get_user_agent()
+
     if token:
         logger.debug("using per-request token from context")
-        async with AsyncPlyrClient(token=token) as client:
+        async with AsyncPlyrClient(token=token, user_agent=user_agent) as client:
             yield client
     else:
         logger.debug("no per-request token, using environment defaults")
-        client = AsyncPlyrClient()
+        client = AsyncPlyrClient(user_agent=user_agent)
 
         if require_auth and not client._token:
             msg = (

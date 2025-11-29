@@ -1,6 +1,6 @@
 """tests for MCP server header-based authentication."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 from plyrfm_mcp.client import get_plyr_client
 from plyrfm_mcp.middleware import PlyrAuthMiddleware
@@ -92,7 +92,9 @@ async def test_get_plyr_client_with_context_token():
             assert client is mock_client
 
         # verify AsyncPlyrClient was called with token from context
-        mock_client_cls.assert_called_once_with(token="test-token-from-context")
+        mock_client_cls.assert_called_once_with(
+            token="test-token-from-context", user_agent=ANY
+        )
 
 
 async def test_get_plyr_client_fallback_to_environment():
@@ -114,7 +116,7 @@ async def test_get_plyr_client_fallback_to_environment():
             assert client is mock_client
 
         # verify AsyncPlyrClient was called without explicit token (uses env)
-        mock_client_cls.assert_called_once_with()
+        mock_client_cls.assert_called_once_with(user_agent=ANY)
 
 
 async def test_get_plyr_client_fallback_when_no_token_in_context():
@@ -139,7 +141,7 @@ async def test_get_plyr_client_fallback_when_no_token_in_context():
             assert client is mock_client
 
         # verify AsyncPlyrClient was called without explicit token
-        mock_client_cls.assert_called_once_with()
+        mock_client_cls.assert_called_once_with(user_agent=ANY)
 
 
 async def test_get_plyr_client_require_auth_raises_when_no_token():
