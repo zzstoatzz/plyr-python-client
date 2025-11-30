@@ -1,16 +1,14 @@
 """weekly plyr.fm digest flow.
 
-gathers stats from public plyr.fm API via MCP, produces a structured report.
-first run establishes baseline; subsequent runs compare to previous week.
+gathers stats from public plyr.fm API via MCP, produces a structured report,
+and posts a thread to bluesky with the results.
 """
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 
 from prefect import flow
-from prefect.variables import Variable
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerStreamableHTTP
@@ -88,27 +86,39 @@ class WeeklyDigest(BaseModel):
 DIGEST_PROMPT = """\
 you are a music curator analyzing plyr.fm, a community music platform on bluesky.
 
-use the plyr.fm MCP tools to explore public tracks and gather data for a weekly digest.
+you have access to two MCP servers:
+- plyr.fm: for exploring public tracks and gathering music data
+- atproto: for posting threads to bluesky and searching previous posts
 
 your tasks:
-1. list all public tracks (use list_tracks with a reasonable limit like 50-100)
-2. identify the top 5 tracks by play_count
-3. find "rising" tracks - newer uploads or tracks with notable engagement
-4. spotlight 1-3 interesting artists based on their catalog
-5. analyze track titles/artists to write a brief "vibe summary"
-6. note any fun facts (e.g. most common file type, prolific uploaders)
+1. use the atproto search tool to find your previous digest posts (search for "plyr.fm weekly digest")
+   - extract the previous stats if found (total tracks, plays, artists)
+2. use plyr.fm list_tracks to get current public tracks (limit 50-100)
+3. identify the top 5 tracks by play_count
+4. find "rising" tracks - newer uploads or tracks with notable engagement
+5. spotlight 1-3 interesting artists based on their catalog
+6. analyze track titles/artists to write a brief "vibe summary"
+7. note any fun facts (e.g. most common file type, prolific uploaders)
+8. post a thread to bluesky with your digest using create_thread
 
-be creative with your vibe summary - look for themes, genres hinted at in titles,
-interesting artist names, etc.
+thread format (each post max 300 chars):
+- post 1: "🎵 plyr.fm weekly digest - [date]" + stats summary
+- post 2: top tracks with play counts
+- post 3: rising tracks / artist spotlight
+- post 4: vibe summary
+- post 5: fun fact (if any)
+
+be creative and engaging! this is a public post.
 """
 
 plyr_mcp = MCPServerStreamableHTTP(url="https://plyrfm.fastmcp.app/mcp/")
+atproto_mcp = MCPServerStreamableHTTP(url="https://labour-hamster.fastmcp.app/mcp/")
 
 digest_agent: Agent[None, WeeklyDigest] = Agent(
     model=AnthropicModel("claude-sonnet-4-5-20250929"),
     output_type=WeeklyDigest,
     system_prompt=DIGEST_PROMPT,
-    mcp_servers=[plyr_mcp],
+    mcp_servers=[plyr_mcp, atproto_mcp],
 )
 
 
@@ -124,58 +134,25 @@ def add_current_time() -> str:
 # -----------------------------------------------------------------------------
 
 
-VARIABLE_NAME = "plyr_weekly_digest"
-
-
-class DigestSnapshot(BaseModel):
-    """minimal stats stored for week-over-week comparison (fits in 255 chars)."""
-
-    generated_at: datetime
-    total_tracks: int
-    total_plays: int
-    unique_artists: int
-
-
 @flow(name="plyr-weekly-digest", log_prints=True)
 async def weekly_digest_flow() -> WeeklyDigest:
-    """gather weekly plyr.fm digest.
+    """gather weekly plyr.fm digest and post to bluesky.
 
-    reads previous digest from prefect variable for comparison.
-    stores new digest back to the same variable.
+    the agent will:
+    1. search bluesky for previous digest posts to get comparison data
+    2. gather current stats from plyr.fm
+    3. generate the digest
+    4. post a thread to bluesky with the results
 
     returns:
         WeeklyDigest with stats and highlights
     """
     print("🎵 starting plyr.fm weekly digest...")
+    print("🤖 agent gathering data and posting to bluesky...")
 
-    # load previous snapshot from prefect variable
-    previous_raw = await Variable.aget(VARIABLE_NAME, default=None)
-    previous_data = (
-        json.loads(previous_raw) if isinstance(previous_raw, str) else previous_raw
+    result = await digest_agent.run(
+        "gather the weekly plyr.fm digest and post it as a thread to bluesky"
     )
-    if previous_data and isinstance(previous_data, dict):
-        previous = DigestSnapshot.model_validate(previous_data)
-        context = f"""
-        this is a comparison run. previous snapshot from {previous.generated_at}:
-        - total tracks: {previous.total_tracks}
-        - total plays: {previous.total_plays}
-        - unique artists: {previous.unique_artists}
-
-        set period_start to {previous.generated_at} and compare current stats.
-        highlight tracks that gained the most plays since then.
-        """
-        print(f"📊 comparing to previous snapshot from {previous.generated_at}")
-    else:
-        context = """
-        this is a baseline run - first digest, no previous data to compare.
-        gather current stats and identify standout tracks/artists.
-        set period_start to None.
-        """
-        print("📊 baseline run - establishing initial stats")
-
-    # run agent
-    print("🤖 agent exploring plyr.fm...")
-    result = await digest_agent.run(context)
     digest = result.output
 
     # log summary
@@ -193,21 +170,7 @@ async def weekly_digest_flow() -> WeeklyDigest:
     if digest.fun_fact:
         print(f"\n💡 fun fact: {digest.fun_fact}")
 
-    # save minimal snapshot to prefect variable (255 char limit on older prefect)
-    snapshot = DigestSnapshot(
-        generated_at=digest.generated_at,
-        total_tracks=digest.stats.total_tracks,
-        total_plays=digest.stats.total_plays,
-        unique_artists=digest.stats.unique_artists,
-    )
-    snapshot_json = snapshot.model_dump_json()
-    print(f"\n📝 snapshot JSON length: {len(snapshot_json)} chars")
-    result = await Variable.aset(
-        name=VARIABLE_NAME,
-        value=snapshot_json,
-        overwrite=True,
-    )
-    print(f"💾 saved snapshot to prefect variable '{VARIABLE_NAME}'")
+    print("\n✅ digest posted to bluesky!")
 
     return digest
 
