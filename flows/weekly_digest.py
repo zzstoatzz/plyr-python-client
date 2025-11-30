@@ -1,21 +1,25 @@
 """weekly plyr.fm digest flow.
 
 gathers stats from public plyr.fm API via MCP, produces a structured report,
-and posts a thread to bluesky with the results.
+and posts a thread to bluesky with the results. uses previous digest as baseline.
 """
 
 from __future__ import annotations
 
 import os
+import re
 import time
 from datetime import datetime, timezone
 
 from atproto import Client, models
 from prefect import flow
+from prefect.variables import Variable
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.models.anthropic import AnthropicModel
+
+LATEST_DIGEST_VAR = "plyr-digest-latest-url"
 
 # -----------------------------------------------------------------------------
 # output types
@@ -30,9 +34,7 @@ class TrackHighlight(BaseModel):
     artist: str
     artist_handle: str
     play_count: int
-    reason: str = Field(
-        description="why this track is notable (e.g. 'most played', 'new artist')"
-    )
+    reason: str = Field(description="why this track is notable - be specific")
 
 
 class ArtistSpotlight(BaseModel):
@@ -42,7 +44,7 @@ class ArtistSpotlight(BaseModel):
     display_name: str | None
     track_count: int
     total_plays: int
-    reason: str = Field(description="why spotlight this artist")
+    reason: str = Field(description="why spotlight this artist - be specific")
 
 
 class WeeklyStats(BaseModel):
@@ -61,9 +63,7 @@ class ThreadContent(BaseModel):
     """the bluesky thread content to post."""
 
     posts: list[str] = Field(
-        description="list of post texts (max 300 chars each). "
-        "post 1: header + stats, post 2: top tracks, post 3: rising/spotlight, "
-        "post 4: vibe summary, post 5: fun fact (optional)"
+        description="list of post texts (max 300 chars each). keep it tight and factual."
     )
 
 
@@ -72,45 +72,109 @@ class WeeklyDigest(BaseModel):
 
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     period_start: datetime | None = Field(
-        default=None, description="start of observation period (None for baseline)"
+        default=None, description="start of observation period"
     )
     period_end: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     stats: WeeklyStats
     top_tracks: list[TrackHighlight] = Field(description="top 5 tracks by play count")
     rising_tracks: list[TrackHighlight] = Field(
-        description="tracks gaining momentum (new or fast-growing)"
+        description="tracks gaining momentum - new uploads or notable engagement"
     )
     artist_spotlights: list[ArtistSpotlight] = Field(
-        default_factory=list, description="1-3 artists to highlight"
+        default_factory=list, description="1-2 artists to highlight"
     )
-    vibe_summary: str = Field(
-        description="2-3 sentence summary of the week's musical vibe/themes"
-    )
+    vibe_summary: str = Field(description="1 sentence summary of the week's themes")
     fun_fact: str | None = Field(
-        default=None, description="an interesting observation from the data"
+        default=None, description="one interesting observation from the data"
     )
-    thread: ThreadContent = Field(
-        description="the bluesky thread content ready to post"
-    )
+    thread: ThreadContent = Field(description="the bluesky thread content to post")
+
+
+class PreviousDigest(BaseModel):
+    """parsed stats from a previous digest post."""
+
+    total_tracks: int | None = None
+    total_plays: int | None = None
+    unique_artists: int | None = None
+    top_track: str | None = None
+    post_date: str | None = None
 
 
 # -----------------------------------------------------------------------------
-# bluesky posting
+# bluesky helpers
 # -----------------------------------------------------------------------------
+
+
+def get_bsky_client() -> Client:
+    """get authenticated bluesky client."""
+    handle = os.environ.get("BSKY_HANDLE")
+    password = os.environ.get("BSKY_PASSWORD")
+    if not handle or not password:
+        raise ValueError("BSKY_HANDLE and BSKY_PASSWORD env vars required")
+    client = Client()
+    client.login(handle, password)
+    return client
+
+
+async def get_previous_digest() -> PreviousDigest | None:
+    """fetch previous digest using URL stored in prefect variable."""
+    try:
+        url = await Variable.aget(LATEST_DIGEST_VAR)
+        if not url:
+            return None
+
+        # extract post rkey from URL: https://bsky.app/profile/handle/post/RKEY
+        parts = url.split("/")
+        if len(parts) < 2:
+            return None
+
+        handle = parts[-3] if len(parts) >= 3 else os.environ.get("BSKY_HANDLE", "")
+        rkey = parts[-1]
+
+        # fetch the post
+        client = get_bsky_client()
+        # construct AT URI from URL
+        # need to resolve handle to DID first
+        profile = client.get_profile(actor=handle)
+        at_uri = f"at://{profile.did}/app.bsky.feed.post/{rkey}"
+
+        posts = client.app.bsky.feed.get_posts(params={"uris": [at_uri]})
+        if not posts.posts:
+            return None
+
+        post = posts.posts[0]
+        return _parse_digest_post(post.record.text, post.record.created_at)
+
+    except Exception as e:
+        print(f"failed to fetch previous digest: {e}")
+        return None
+
+
+def _parse_digest_post(text: str, created_at: str) -> PreviousDigest:
+    """extract stats from a digest post."""
+    result = PreviousDigest(post_date=created_at[:10] if created_at else None)
+
+    # look for patterns like "57 tracks" or "tracks: 57"
+    tracks_match = re.search(r"(\d+)\s*tracks", text, re.IGNORECASE)
+    if tracks_match:
+        result.total_tracks = int(tracks_match.group(1))
+
+    # look for patterns like "1776 plays" or "plays: 1776"
+    plays_match = re.search(r"(\d+)\s*plays", text, re.IGNORECASE)
+    if plays_match:
+        result.total_plays = int(plays_match.group(1))
+
+    # look for patterns like "24 artists"
+    artists_match = re.search(r"(\d+)\s*artists", text, re.IGNORECASE)
+    if artists_match:
+        result.unique_artists = int(artists_match.group(1))
+
+    return result
 
 
 def post_thread(posts: list[str], max_retries: int = 3) -> str:
-    """post a thread to bluesky.
-
-    args:
-        posts: list of post texts (max 300 chars each). first post is thread root,
-               subsequent posts reply to the previous one.
-        max_retries: number of retries for transient failures.
-
-    returns:
-        URL of the thread root post.
-    """
+    """post a thread to bluesky with retry logic."""
     handle = os.environ.get("BSKY_HANDLE")
     password = os.environ.get("BSKY_PASSWORD")
     if not handle or not password:
@@ -134,7 +198,7 @@ def post_thread(posts: list[str], max_retries: int = 3) -> str:
                     root_uri = response.uri
                     parent_uri = root_uri
                     post_uris.append(root_uri)
-                    time.sleep(1)  # longer delay for API stability
+                    time.sleep(1)
                 else:
                     parent_post = client.app.bsky.feed.get_posts(
                         params={"uris": [parent_uri]}
@@ -171,7 +235,7 @@ def post_thread(posts: list[str], max_retries: int = 3) -> str:
         except Exception as e:
             if attempt < max_retries - 1:
                 print(f"attempt {attempt + 1} failed: {e}, retrying...")
-                time.sleep(2**attempt)  # exponential backoff
+                time.sleep(2**attempt)
             else:
                 raise
 
@@ -181,26 +245,29 @@ def post_thread(posts: list[str], max_retries: int = 3) -> str:
 # -----------------------------------------------------------------------------
 
 DIGEST_PROMPT = """\
-you are a music curator analyzing plyr.fm, a community music platform on bluesky.
+you are analyzing plyr.fm, a music platform on bluesky.
 
-your tasks:
-1. use plyr.fm list_tracks to get current public tracks (limit 50-100)
-2. identify the top 5 tracks by play_count
-3. find "rising" tracks - newer uploads or tracks with notable engagement
-4. spotlight 1-3 interesting artists based on their catalog
-5. analyze track titles/artists to write a brief "vibe summary"
-6. note any fun facts (e.g. most common file type, prolific uploaders)
+tasks:
+1. use list_tracks (limit 100) to get current public tracks
+2. identify top 5 tracks by play_count
+3. find rising tracks - recently uploaded or gaining plays
+4. spotlight 1-2 interesting artists
+5. note one fun fact from the data
 
-return the structured digest with thread content ready to post.
+style guidelines:
+- be direct and factual. no hype, no superlatives
+- focus on what changed since last week (if previous stats provided)
+- keep posts SHORT. aim for 200 chars, max 280
+- use numbers: "+3 new tracks" not "several new tracks"
+- if one artist dominates, acknowledge it once and move on to what else is interesting
 
-thread format (each post max 300 chars):
-- post 1: "🎵 plyr.fm weekly digest - [date]" + stats summary
-- post 2: top tracks with play counts
-- post 3: rising tracks / artist spotlight
-- post 4: vibe summary
-- post 5: fun fact (if any)
+thread format (4-5 posts, each under 280 chars):
+- post 1: "plyr.fm digest [date]" + key stats + delta from last week if available
+- post 2: top 3 tracks with play counts
+- post 3: what's new/rising this week
+- post 4: one interesting observation
 
-be creative and engaging! this will be posted publicly.
+avoid: excessive emojis, "crushing it", "vibes", "eclectic", filler words
 """
 
 plyr_mcp = MCPServerStreamableHTTP(url="https://plyrfm.fastmcp.app/mcp/")
@@ -229,37 +296,41 @@ def add_current_time() -> str:
 async def weekly_digest_flow() -> WeeklyDigest:
     """gather weekly plyr.fm digest and post to bluesky.
 
-    the agent gathers data and returns structured output including thread content,
-    then we deterministically post the thread.
-
-    returns:
-        WeeklyDigest with stats and highlights
+    fetches previous digest for comparison, generates new digest with deltas,
+    posts the thread, then saves the URL for next time.
     """
-    print("🎵 starting plyr.fm weekly digest...")
-    print("🤖 agent gathering data...")
+    print("fetching previous digest for comparison...")
+    previous = await get_previous_digest()
 
-    result = await digest_agent.run("gather the weekly plyr.fm digest")
+    if previous and previous.total_tracks:
+        print(f"found previous digest from {previous.post_date}:")
+        print(f"  tracks: {previous.total_tracks}, plays: {previous.total_plays}")
+        context = (
+            f"previous digest ({previous.post_date}): "
+            f"{previous.total_tracks} tracks, {previous.total_plays} plays, "
+            f"{previous.unique_artists} artists. "
+            "compare current stats to these and report deltas."
+        )
+    else:
+        print("no previous digest found, this will be the baseline")
+        context = "this is the first digest, no previous data to compare."
+
+    print("gathering current data...")
+    result = await digest_agent.run(f"generate plyr.fm digest. {context}")
     digest = result.output
 
-    # log summary
-    print("\n📈 stats:")
-    print(f"   tracks: {digest.stats.total_tracks}")
-    print(f"   plays: {digest.stats.total_plays}")
-    print(f"   artists: {digest.stats.unique_artists}")
+    print(
+        f"\nstats: {digest.stats.total_tracks} tracks, {digest.stats.total_plays} plays"
+    )
+    print(f"top track: {digest.top_tracks[0].title} by {digest.top_tracks[0].artist}")
 
-    print("\n🏆 top tracks:")
-    for t in digest.top_tracks[:3]:
-        print(f"   - {t.title} by {t.artist} ({t.play_count} plays)")
-
-    print(f"\n🎤 vibe: {digest.vibe_summary}")
-
-    if digest.fun_fact:
-        print(f"\n💡 fun fact: {digest.fun_fact}")
-
-    # post the thread
-    print("\n📤 posting thread to bluesky...")
+    print("\nposting thread...")
     thread_url = post_thread(digest.thread.posts)
-    print(f"✅ thread posted: {thread_url}")
+    print(f"posted: {thread_url}")
+
+    # save URL for next run
+    await Variable.aset(LATEST_DIGEST_VAR, thread_url, overwrite=True)
+    print(f"saved {LATEST_DIGEST_VAR} = {thread_url}")
 
     return digest
 
