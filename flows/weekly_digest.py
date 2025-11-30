@@ -6,6 +6,7 @@ first run establishes baseline; subsequent runs compare to previous week.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime, timezone
 
@@ -139,8 +140,13 @@ async def weekly_digest_flow() -> WeeklyDigest:
 
     agent = create_digest_agent()
 
-    # load previous digest from prefect variable (use sync API for compatibility)
-    previous_data = Variable.get(VARIABLE_NAME, default=None)
+    # load previous digest from prefect variable
+    # older prefect versions have Variable.get return a coroutine, must await it
+    maybe_coro = Variable.get(VARIABLE_NAME, default=None)
+    if asyncio.iscoroutine(maybe_coro):
+        previous_data = await maybe_coro
+    else:
+        previous_data = maybe_coro
     if previous_data and isinstance(previous_data, dict):
         previous = WeeklyDigest.model_validate(previous_data)
         context = f"""
@@ -181,19 +187,22 @@ async def weekly_digest_flow() -> WeeklyDigest:
     if digest.fun_fact:
         print(f"\n💡 fun fact: {digest.fun_fact}")
 
-    # save digest to prefect variable (use sync API for compatibility)
+    # save digest to prefect variable
+    # older prefect versions have Variable.set return a coroutine, must await it
     digest_json = digest.model_dump_json()
     digest_value = json.loads(digest_json)
     print(f"\n📝 digest JSON length: {len(digest_json)} chars")
-    try:
-        result = Variable.set(
-            name=VARIABLE_NAME,
-            value=digest_value,
-            overwrite=True,
-        )
-        print(f"💾 saved to prefect variable '{VARIABLE_NAME}' (result: {result})")
-    except Exception as e:
-        print(f"❌ failed to save variable: {e}")
+    coro = Variable.set(
+        name=VARIABLE_NAME,
+        value=digest_value,
+        overwrite=True,
+    )
+    # await if it's a coroutine (older prefect), otherwise use directly
+    if asyncio.iscoroutine(coro):
+        result = await coro
+    else:
+        result = coro
+    print(f"💾 saved to prefect variable '{VARIABLE_NAME}' (id: {result.id})")
 
     return digest
 
