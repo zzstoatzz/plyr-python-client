@@ -139,8 +139,8 @@ async def weekly_digest_flow() -> WeeklyDigest:
 
     agent = create_digest_agent()
 
-    # load previous digest from prefect variable
-    previous_data = await Variable.aget(VARIABLE_NAME)
+    # load previous digest from prefect variable (use sync API for compatibility)
+    previous_data = Variable.get(VARIABLE_NAME)
     if previous_data:
         previous = WeeklyDigest.model_validate(previous_data)
         context = f"""
@@ -181,8 +181,8 @@ async def weekly_digest_flow() -> WeeklyDigest:
     if digest.fun_fact:
         print(f"\n💡 fun fact: {digest.fun_fact}")
 
-    # save digest to prefect variable
-    await Variable.aset(
+    # save digest to prefect variable (use sync API for compatibility)
+    Variable.set(
         name=VARIABLE_NAME,
         value=json.loads(digest.model_dump_json()),
         overwrite=True,
