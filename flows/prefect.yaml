@@ -1,8 +1,16 @@
+pull:
+  - prefect.deployments.steps.git_clone:
+      repository: https://github.com/zzstoatzz/plyr-python-client.git
+      branch: main
+
 deployments:
   - name: plyr-weekly-digest
     entrypoint: flows/weekly_digest.py:weekly_digest_flow
     work_pool:
-      name: default
+      name: managed
+      job_variables:
+        env:
+          ANTHROPIC_API_KEY: "{{ prefect.blocks.secret.anthropic-api-key }}"
     schedule:
       cron: "0 12 * * 0"  # sundays at noon UTC
     tags:
