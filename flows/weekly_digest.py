@@ -182,12 +182,18 @@ async def weekly_digest_flow() -> WeeklyDigest:
         print(f"\n💡 fun fact: {digest.fun_fact}")
 
     # save digest to prefect variable (use sync API for compatibility)
-    Variable.set(
-        name=VARIABLE_NAME,
-        value=json.loads(digest.model_dump_json()),
-        overwrite=True,
-    )
-    print(f"\n💾 saved to prefect variable '{VARIABLE_NAME}'")
+    digest_json = digest.model_dump_json()
+    digest_value = json.loads(digest_json)
+    print(f"\n📝 digest JSON length: {len(digest_json)} chars")
+    try:
+        result = Variable.set(
+            name=VARIABLE_NAME,
+            value=digest_value,
+            overwrite=True,
+        )
+        print(f"💾 saved to prefect variable '{VARIABLE_NAME}' (result: {result})")
+    except Exception as e:
+        print(f"❌ failed to save variable: {e}")
 
     return digest
 
