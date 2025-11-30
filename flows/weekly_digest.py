@@ -141,12 +141,16 @@ async def weekly_digest_flow() -> WeeklyDigest:
     agent = create_digest_agent()
 
     # load previous digest from prefect variable
-    # older prefect versions have Variable.get return a coroutine, must await it
+    # older prefect versions store as string, return coroutine that must be awaited
     maybe_coro = Variable.get(VARIABLE_NAME, default=None)
     if asyncio.iscoroutine(maybe_coro):
-        previous_data = await maybe_coro
+        previous_raw = await maybe_coro
     else:
-        previous_data = maybe_coro
+        previous_raw = maybe_coro
+    # parse JSON string to dict
+    previous_data = (
+        json.loads(previous_raw) if isinstance(previous_raw, str) else previous_raw
+    )
     if previous_data and isinstance(previous_data, dict):
         previous = WeeklyDigest.model_validate(previous_data)
         context = f"""
@@ -188,13 +192,12 @@ async def weekly_digest_flow() -> WeeklyDigest:
         print(f"\n💡 fun fact: {digest.fun_fact}")
 
     # save digest to prefect variable
-    # older prefect versions have Variable.set return a coroutine, must await it
+    # older prefect versions expect string value, return coroutine that must be awaited
     digest_json = digest.model_dump_json()
-    digest_value = json.loads(digest_json)
     print(f"\n📝 digest JSON length: {len(digest_json)} chars")
     coro = Variable.set(
         name=VARIABLE_NAME,
-        value=digest_value,
+        value=digest_json,  # store as JSON string for older prefect compatibility
         overwrite=True,
     )
     # await if it's a coroutine (older prefect), otherwise use directly
