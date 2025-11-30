@@ -10,7 +10,7 @@ deployments:
       name: managed
       job_variables:
         env:
-          EXTRA_PIP_PACKAGES: "pydantic-ai[mcp]"
+          EXTRA_PIP_PACKAGES: "pydantic-ai[mcp] prefect>=3.0"
           ANTHROPIC_API_KEY: "{{ prefect.blocks.secret.anthropic-api-key }}"
     schedule:
       cron: "0 12 * * 0"  # sundays at noon UTC
