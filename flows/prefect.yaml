@@ -10,8 +10,10 @@ deployments:
       name: managed
       job_variables:
         env:
-          EXTRA_PIP_PACKAGES: "pydantic-ai[mcp] prefect>=3.0"
+          EXTRA_PIP_PACKAGES: "pydantic-ai[mcp] prefect>=3.0 atproto"
           ANTHROPIC_API_KEY: "{{ prefect.blocks.secret.anthropic-api-key }}"
+          BSKY_HANDLE: "{{ prefect.blocks.secret.bsky-handle }}"
+          BSKY_PASSWORD: "{{ prefect.blocks.secret.bsky-password }}"
     schedule:
       cron: "0 12 * * 0"  # sundays at noon UTC
     tags:
