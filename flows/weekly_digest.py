@@ -6,10 +6,11 @@ first run establishes baseline; subsequent runs compare to previous week.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
-from pathlib import Path
 
 from prefect import flow
+from prefect.variables import Variable
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerStreamableHTTP
@@ -121,15 +122,15 @@ def create_digest_agent() -> Agent[None, WeeklyDigest]:
 # -----------------------------------------------------------------------------
 
 
+VARIABLE_NAME = "plyr_weekly_digest"
+
+
 @flow(name="plyr-weekly-digest", log_prints=True)
-async def weekly_digest_flow(
-    previous_digest_path: Path | None = None,
-) -> WeeklyDigest:
+async def weekly_digest_flow() -> WeeklyDigest:
     """gather weekly plyr.fm digest.
 
-    args:
-        previous_digest_path: path to previous week's digest JSON for comparison.
-            if None, this is a baseline run.
+    reads previous digest from prefect variable for comparison.
+    stores new digest back to the same variable.
 
     returns:
         WeeklyDigest with stats and highlights
@@ -138,9 +139,10 @@ async def weekly_digest_flow(
 
     agent = create_digest_agent()
 
-    # build context
-    if previous_digest_path and previous_digest_path.exists():
-        previous = WeeklyDigest.model_validate_json(previous_digest_path.read_text())
+    # load previous digest from prefect variable
+    previous_data = await Variable.aget(VARIABLE_NAME)
+    if previous_data:
+        previous = WeeklyDigest.model_validate(previous_data)
         context = f"""
         this is a comparison run. previous digest from {previous.generated_at}:
         - total tracks: {previous.stats.total_tracks}
@@ -150,6 +152,7 @@ async def weekly_digest_flow(
         set period_start to {previous.generated_at} and compare current stats.
         highlight tracks that gained the most plays since then.
         """
+        print(f"📊 comparing to previous digest from {previous.generated_at}")
     else:
         context = """
         this is a baseline run - first digest, no previous data to compare.
@@ -178,11 +181,13 @@ async def weekly_digest_flow(
     if digest.fun_fact:
         print(f"\n💡 fun fact: {digest.fun_fact}")
 
-    # save digest
-    output_path = Path(f"digests/digest_{digest.generated_at.strftime('%Y%m%d')}.json")
-    output_path.parent.mkdir(exist_ok=True)
-    output_path.write_text(digest.model_dump_json(indent=2))
-    print(f"\n💾 saved to {output_path}")
+    # save digest to prefect variable
+    await Variable.aset(
+        name=VARIABLE_NAME,
+        value=json.loads(digest.model_dump_json()),
+        overwrite=True,
+    )
+    print(f"\n💾 saved to prefect variable '{VARIABLE_NAME}'")
 
     return digest
 
