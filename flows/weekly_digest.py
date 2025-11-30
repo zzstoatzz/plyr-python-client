@@ -100,21 +100,23 @@ your tasks:
 
 be creative with your vibe summary - look for themes, genres hinted at in titles,
 interesting artist names, etc.
-
-this is a baseline run, so period_start should be None.
 """
 
+plyr_mcp = MCPServerStreamableHTTP(url="https://plyrfm.fastmcp.app/mcp/")
 
-def create_digest_agent() -> Agent[None, WeeklyDigest]:
-    """create agent with plyr.fm MCP for gathering digest data."""
-    plyr_mcp = MCPServerStreamableHTTP(url="https://plyrfm.fastmcp.app/mcp/")
+digest_agent: Agent[None, WeeklyDigest] = Agent(
+    model=AnthropicModel("claude-sonnet-4-5-20250929"),
+    output_type=WeeklyDigest,
+    system_prompt=DIGEST_PROMPT,
+    mcp_servers=[plyr_mcp],
+)
 
-    return Agent(
-        model=AnthropicModel("claude-sonnet-4-5-20250929"),
-        output_type=WeeklyDigest,
-        system_prompt=DIGEST_PROMPT,
-        mcp_servers=[plyr_mcp],
-    )
+
+@digest_agent.system_prompt
+def add_current_time() -> str:
+    """inject current UTC time into system prompt."""
+    now = datetime.now(timezone.utc)
+    return f"current date/time (UTC): {now.isoformat()}"
 
 
 # -----------------------------------------------------------------------------
@@ -146,8 +148,6 @@ async def weekly_digest_flow() -> WeeklyDigest:
     """
     print("🎵 starting plyr.fm weekly digest...")
 
-    agent = create_digest_agent()
-
     # load previous snapshot from prefect variable
     previous_raw = await Variable.aget(VARIABLE_NAME, default=None)
     previous_data = (
@@ -175,7 +175,7 @@ async def weekly_digest_flow() -> WeeklyDigest:
 
     # run agent
     print("🤖 agent exploring plyr.fm...")
-    result = await agent.run(context)
+    result = await digest_agent.run(context)
     digest = result.output
 
     # log summary
