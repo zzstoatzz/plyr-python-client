@@ -1,0 +1,11 @@
+deployments:
+  - name: plyr-weekly-digest
+    entrypoint: flows/weekly_digest.py:weekly_digest_flow
+    work_pool:
+      name: default
+    schedule:
+      cron: "0 12 * * 0"  # sundays at noon UTC
+    tags:
+      - plyr
+      - digest
+      - weekly
