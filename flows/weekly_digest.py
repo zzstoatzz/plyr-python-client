@@ -6,7 +6,6 @@ first run establishes baseline; subsequent runs compare to previous week.
 
 from __future__ import annotations
 
-import asyncio
 import json
 from datetime import datetime, timezone
 
@@ -150,13 +149,7 @@ async def weekly_digest_flow() -> WeeklyDigest:
     agent = create_digest_agent()
 
     # load previous snapshot from prefect variable
-    # older prefect versions store as string, return coroutine that must be awaited
-    maybe_coro = Variable.get(VARIABLE_NAME, default=None)
-    if asyncio.iscoroutine(maybe_coro):
-        previous_raw = await maybe_coro
-    else:
-        previous_raw = maybe_coro
-    # parse JSON string to dict
+    previous_raw = await Variable.aget(VARIABLE_NAME, default=None)
     previous_data = (
         json.loads(previous_raw) if isinstance(previous_raw, str) else previous_raw
     )
@@ -209,16 +202,11 @@ async def weekly_digest_flow() -> WeeklyDigest:
     )
     snapshot_json = snapshot.model_dump_json()
     print(f"\n📝 snapshot JSON length: {len(snapshot_json)} chars")
-    coro = Variable.set(
+    result = await Variable.aset(
         name=VARIABLE_NAME,
         value=snapshot_json,
         overwrite=True,
     )
-    # await if it's a coroutine (older prefect), otherwise use directly
-    if asyncio.iscoroutine(coro):
-        result = await coro
-    else:
-        result = coro
     print(f"💾 saved snapshot to prefect variable '{VARIABLE_NAME}' (id: {result.id})")
 
     return digest
