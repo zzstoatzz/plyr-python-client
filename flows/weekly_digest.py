@@ -207,7 +207,7 @@ async def weekly_digest_flow() -> WeeklyDigest:
         value=snapshot_json,
         overwrite=True,
     )
-    print(f"💾 saved snapshot to prefect variable '{VARIABLE_NAME}' (id: {result.id})")
+    print(f"💾 saved snapshot to prefect variable '{VARIABLE_NAME}'")
 
     return digest
 
