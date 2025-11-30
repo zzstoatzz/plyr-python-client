@@ -126,6 +126,15 @@ def create_digest_agent() -> Agent[None, WeeklyDigest]:
 VARIABLE_NAME = "plyr_weekly_digest"
 
 
+class DigestSnapshot(BaseModel):
+    """minimal stats stored for week-over-week comparison (fits in 255 chars)."""
+
+    generated_at: datetime
+    total_tracks: int
+    total_plays: int
+    unique_artists: int
+
+
 @flow(name="plyr-weekly-digest", log_prints=True)
 async def weekly_digest_flow() -> WeeklyDigest:
     """gather weekly plyr.fm digest.
@@ -140,7 +149,7 @@ async def weekly_digest_flow() -> WeeklyDigest:
 
     agent = create_digest_agent()
 
-    # load previous digest from prefect variable
+    # load previous snapshot from prefect variable
     # older prefect versions store as string, return coroutine that must be awaited
     maybe_coro = Variable.get(VARIABLE_NAME, default=None)
     if asyncio.iscoroutine(maybe_coro):
@@ -152,17 +161,17 @@ async def weekly_digest_flow() -> WeeklyDigest:
         json.loads(previous_raw) if isinstance(previous_raw, str) else previous_raw
     )
     if previous_data and isinstance(previous_data, dict):
-        previous = WeeklyDigest.model_validate(previous_data)
+        previous = DigestSnapshot.model_validate(previous_data)
         context = f"""
-        this is a comparison run. previous digest from {previous.generated_at}:
-        - total tracks: {previous.stats.total_tracks}
-        - total plays: {previous.stats.total_plays}
-        - unique artists: {previous.stats.unique_artists}
+        this is a comparison run. previous snapshot from {previous.generated_at}:
+        - total tracks: {previous.total_tracks}
+        - total plays: {previous.total_plays}
+        - unique artists: {previous.unique_artists}
 
         set period_start to {previous.generated_at} and compare current stats.
         highlight tracks that gained the most plays since then.
         """
-        print(f"📊 comparing to previous digest from {previous.generated_at}")
+        print(f"📊 comparing to previous snapshot from {previous.generated_at}")
     else:
         context = """
         this is a baseline run - first digest, no previous data to compare.
@@ -191,13 +200,18 @@ async def weekly_digest_flow() -> WeeklyDigest:
     if digest.fun_fact:
         print(f"\n💡 fun fact: {digest.fun_fact}")
 
-    # save digest to prefect variable
-    # older prefect versions expect string value, return coroutine that must be awaited
-    digest_json = digest.model_dump_json()
-    print(f"\n📝 digest JSON length: {len(digest_json)} chars")
+    # save minimal snapshot to prefect variable (255 char limit on older prefect)
+    snapshot = DigestSnapshot(
+        generated_at=digest.generated_at,
+        total_tracks=digest.stats.total_tracks,
+        total_plays=digest.stats.total_plays,
+        unique_artists=digest.stats.unique_artists,
+    )
+    snapshot_json = snapshot.model_dump_json()
+    print(f"\n📝 snapshot JSON length: {len(snapshot_json)} chars")
     coro = Variable.set(
         name=VARIABLE_NAME,
-        value=digest_json,  # store as JSON string for older prefect compatibility
+        value=snapshot_json,
         overwrite=True,
     )
     # await if it's a coroutine (older prefect), otherwise use directly
@@ -205,7 +219,7 @@ async def weekly_digest_flow() -> WeeklyDigest:
         result = await coro
     else:
         result = coro
-    print(f"💾 saved to prefect variable '{VARIABLE_NAME}' (id: {result.id})")
+    print(f"💾 saved snapshot to prefect variable '{VARIABLE_NAME}' (id: {result.id})")
 
     return digest
 
