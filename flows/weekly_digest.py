@@ -140,8 +140,8 @@ async def weekly_digest_flow() -> WeeklyDigest:
     agent = create_digest_agent()
 
     # load previous digest from prefect variable (use sync API for compatibility)
-    previous_data = Variable.get(VARIABLE_NAME)
-    if previous_data:
+    previous_data = Variable.get(VARIABLE_NAME, default=None)
+    if previous_data and isinstance(previous_data, dict):
         previous = WeeklyDigest.model_validate(previous_data)
         context = f"""
         this is a comparison run. previous digest from {previous.generated_at}:
