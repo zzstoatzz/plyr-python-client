@@ -12,7 +12,7 @@ from pathlib import Path
 from prefect import flow
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
-from pydantic_ai.mcp import MCPServerHTTP
+from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.models.anthropic import AnthropicModel
 
 # -----------------------------------------------------------------------------
@@ -106,7 +106,7 @@ this is a baseline run, so period_start should be None.
 
 def create_digest_agent() -> Agent[None, WeeklyDigest]:
     """create agent with plyr.fm MCP for gathering digest data."""
-    plyr_mcp = MCPServerHTTP(url="https://plyrfm.fastmcp.app/mcp")
+    plyr_mcp = MCPServerStreamableHTTP(url="https://plyrfm.fastmcp.app/mcp/")
 
     return Agent(
         model=AnthropicModel("claude-sonnet-4-5-20250929"),
