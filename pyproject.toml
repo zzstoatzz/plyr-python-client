@@ -3,6 +3,9 @@ name = "plyr-workspace"
 version = "0.0.0"
 description = "workspace root for plyr.fm python packages"
 requires-python = ">=3.10"
+dependencies = [
+    "atproto>=0.0.63",
+]
 
 [tool.uv.workspace]
 members = ["packages/*"]
