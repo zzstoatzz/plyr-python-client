@@ -44,10 +44,21 @@ plyrfm upload path/to/track.mp3 "Song Title"
 
 # upload with album
 plyrfm upload track.mp3 "Song Title" --album "Album Name"
+
+# upload with tags (can use -t multiple times)
+plyrfm upload track.mp3 "Song Title" -t electronic -t ambient
+
+# upload with album and tags
+plyrfm upload track.mp3 "Song Title" --album "Album Name" -t ai -t podcast
 ```
 
 ## supported formats
 mp3, wav, m4a
+
+## tags
+tags help users filter and discover tracks. common tags:
+- genre tags: electronic, ambient, hip-hop, etc.
+- content tags: ai (for AI-generated content), podcast, remix
 
 ## common issues
 - "artist_profile_required" -> user needs to create artist profile at plyr.fm/portal

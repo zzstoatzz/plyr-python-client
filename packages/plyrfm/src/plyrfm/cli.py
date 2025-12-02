@@ -98,7 +98,9 @@ def cmd_my_tracks(limit: int = 20) -> None:
     console.print(table)
 
 
-def cmd_upload(file: str, title: str, album: str | None = None) -> None:
+def cmd_upload(
+    file: str, title: str, album: str | None = None, tags: set[str] | None = None
+) -> None:
     """upload a track (requires auth)."""
     client = _get_client(require_auth=True)
     path = Path(file)
@@ -108,7 +110,7 @@ def cmd_upload(file: str, title: str, album: str | None = None) -> None:
 
     with console.status("uploading..."):
         try:
-            result = client.upload(path, title, album=album)
+            result = client.upload(path, title, album=album, tags=tags)
         except FileNotFoundError:
             _error(f"file not found: {file}")
         except ValueError as e:
@@ -201,7 +203,7 @@ USAGE = """\
 
 [bold]authenticated commands:[/]
     my-tracks [--limit N]         list your tracks
-    upload <file> <title> [--album NAME]
+    upload <file> <title> [--album NAME] [-t TAG ...]
                                   upload a track
     download <id> [--output FILE] download a track
     delete <id> [--yes]           delete a track
@@ -215,6 +217,8 @@ USAGE = """\
     plyrfm list                                  # no auth needed
     plyrfm my-tracks                             # requires auth
     plyrfm upload track.mp3 "My Song"            # requires auth
+    plyrfm upload track.mp3 "My Song" -t ai      # with tag
+    plyrfm upload track.mp3 "My Song" -t ai -t podcast  # multiple tags
     plyrfm download 42 -o song.mp3               # requires auth
 """
 
@@ -247,15 +251,24 @@ def main() -> None:
 
     elif cmd == "upload":
         if len(args) < 3:
-            _error("usage: plyr upload <file> <title> [--album NAME]")
+            _error("usage: plyrfm upload <file> <title> [--album NAME] [-t TAG ...]")
         file = args[1]
         title = args[2]
         album = None
+        tags: set[str] = set()
         if "--album" in args:
             idx = args.index("--album")
             if idx + 1 < len(args):
                 album = args[idx + 1]
-        cmd_upload(file, title, album)
+        # collect all -t/--tag values
+        i = 0
+        while i < len(args):
+            if args[i] in ("-t", "--tag") and i + 1 < len(args):
+                tags.add(args[i + 1])
+                i += 2
+            else:
+                i += 1
+        cmd_upload(file, title, album, tags if tags else None)
 
     elif cmd == "download":
         if len(args) < 2:
