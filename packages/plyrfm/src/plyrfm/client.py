@@ -149,6 +149,7 @@ class PlyrClient(_BaseClient):
         title: str,
         *,
         album: str | None = None,
+        tags: set[str] | None = None,
         timeout: float = 300.0,
     ) -> UploadResult:
         """upload a track. requires auth + artist profile."""
@@ -159,9 +160,11 @@ class PlyrClient(_BaseClient):
 
         with open(file, "rb") as f:
             files = {"file": (file.name, f)}
-            data: dict[str, str] = {"title": title}
+            data: dict[str, str | list[str]] = {"title": title}
             if album:
                 data["album"] = album
+            if tags:
+                data["tags"] = list(tags)
 
             response = self._client.post(
                 self._url("/tracks/"),
@@ -374,6 +377,7 @@ class AsyncPlyrClient(_BaseClient):
         title: str,
         *,
         album: str | None = None,
+        tags: set[str] | None = None,
         timeout: float = 300.0,
     ) -> UploadResult:
         """upload a track. requires auth + artist profile."""
@@ -384,9 +388,11 @@ class AsyncPlyrClient(_BaseClient):
 
         with open(file, "rb") as f:
             files = {"file": (file.name, f)}
-            data: dict[str, str] = {"title": title}
+            data: dict[str, str | list[str]] = {"title": title}
             if album:
                 data["album"] = album
+            if tags:
+                data["tags"] = list(tags)
 
             response = await self._client.post(
                 self._url("/tracks/"),
