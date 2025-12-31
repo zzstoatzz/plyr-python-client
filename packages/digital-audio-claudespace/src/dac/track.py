@@ -88,6 +88,64 @@ class Track:
         )
         return self
 
+    def reverse(self) -> "Track":
+        """reverse the audio."""
+        self._effects.append("areverse")
+        return self
+
+    def speed(self, factor: float) -> "Track":
+        """change tempo without affecting pitch.
+
+        factor > 1.0 = faster, factor < 1.0 = slower.
+        range: 0.5 to 2.0 (can chain for wider range).
+        """
+        # atempo only accepts 0.5-2.0, chain for wider range
+        if factor < 0.5:
+            self._effects.append(f"atempo=0.5,atempo={factor / 0.5}")
+        elif factor > 2.0:
+            self._effects.append(f"atempo=2.0,atempo={factor / 2.0}")
+        else:
+            self._effects.append(f"atempo={factor}")
+        return self
+
+    def pitch(self, semitones: float) -> "Track":
+        """shift pitch without affecting tempo.
+
+        semitones > 0 = higher, semitones < 0 = lower.
+        uses asetrate + atempo compensation.
+        """
+        # pitch ratio: 2^(semitones/12)
+        ratio = 2 ** (semitones / 12)
+        # asetrate changes pitch+tempo, atempo compensates tempo back
+        self._effects.append(
+            f"asetrate=48000*{ratio},aresample=48000,atempo={1 / ratio}"
+        )
+        return self
+
+    def bandpass(self, low: float, high: float) -> "Track":
+        """bandpass filter - keep frequencies between low and high."""
+        self._effects.append(f"highpass=f={low},lowpass=f={high}")
+        return self
+
+    def pan(self, position: float) -> "Track":
+        """stereo pan. -1.0 = full left, 0 = center, 1.0 = full right."""
+        # pan filter: 0=left, 0.5=center, 1=right
+        p = (position + 1) / 2  # convert -1..1 to 0..1
+        self._effects.append(f"stereotools=mpan={p}")
+        return self
+
+    def flanger(
+        self, delay: float = 3.0, depth: float = 2.0, speed: float = 0.5
+    ) -> "Track":
+        """flanger effect."""
+        self._effects.append(f"flanger=delay={delay}:depth={depth}:speed={speed}")
+        return self
+
+    def phaser(self, speed: float = 0.5, decay: float = 0.4) -> "Track":
+        """phaser effect."""
+        self._effects.append(f"aphaser=speed={speed}:decay={decay}")
+        return self
+
     # --- compilation ---
 
     def to_filter(self) -> str:
