@@ -33,6 +33,13 @@ class Track:
             self._effects.append(f"afade=t=out:d={duration}:curve={curve}")
         return self
 
+    def trim(self, duration: float, start: float = 0) -> "Track":
+        """trim to a specific duration (in seconds)."""
+        self._effects.append(
+            f"atrim=start={start}:duration={duration},asetpts=PTS-STARTPTS"
+        )
+        return self
+
     def delay(self, ms: int) -> "Track":
         """delay the track."""
         self._effects.append(f"adelay={ms}:all=1")
@@ -145,7 +152,7 @@ def mix(
         "ffmpeg",
         "-hide_banner",
         "-loglevel",
-        "warning",
+        "error",
         "-filter_complex",
         graph,
         "-map",
