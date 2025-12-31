@@ -1,6 +1,16 @@
 """track - composable audio with effects chains."""
 
+from dataclasses import dataclass
 from pathlib import Path
+
+
+@dataclass
+class RenderConfig:
+    """configuration for audio rendering."""
+
+    duration: float
+    sample_rate: int = 48000
+    channels: int = 2
 
 
 class Track:
@@ -204,10 +214,26 @@ def phase(
 
 
 def mix(
-    tracks: list[Track], output: Path, *, duration: float, sample_rate: int = 48000
+    tracks: list[Track],
+    output: Path,
+    *,
+    config: RenderConfig | None = None,
+    duration: float | None = None,
+    sample_rate: int = 48000,
 ) -> Path:
-    """mix multiple tracks to a file."""
+    """mix multiple tracks to a file.
+
+    accepts either a RenderConfig or individual kwargs for backwards compatibility.
+    """
     import subprocess
+
+    # resolve config - prefer explicit config, fall back to kwargs
+    if config is not None:
+        cfg = config
+    elif duration is not None:
+        cfg = RenderConfig(duration=duration, sample_rate=sample_rate)
+    else:
+        raise ValueError("either config or duration must be provided")
 
     parts = [t.to_filter() for t in tracks]
     labels = [f"[{t._label}]" for t in tracks]
@@ -229,11 +255,11 @@ def mix(
         "-map",
         "[out]",
         "-t",
-        str(duration),
+        str(cfg.duration),
         "-ar",
-        str(sample_rate),
+        str(cfg.sample_rate),
         "-ac",
-        "2",
+        str(cfg.channels),
         "-y",
         str(output),
     ]

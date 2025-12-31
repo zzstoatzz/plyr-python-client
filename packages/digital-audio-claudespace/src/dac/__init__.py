@@ -18,9 +18,10 @@ example:
 """
 
 from dac import chords, track
-from dac.track import Sample, Sine, mix, phase
+from dac.track import RenderConfig, Sample, Sine, mix, phase
 
 __all__ = [
+    "RenderConfig",
     "Sample",
     "Sine",
     "chords",
