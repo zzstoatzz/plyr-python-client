@@ -10,8 +10,16 @@ dependencies = [
 [tool.uv.workspace]
 members = ["packages/*"]
 
+[tool.uv.sources]
+digital-audio-claudespace = { workspace = true }
+plyrfm = { workspace = true }
+plyrfm-mcp = { workspace = true }
+
 [dependency-groups]
 dev = [
+    "digital-audio-claudespace",
+    "plyrfm",
+    "plyrfm-mcp",
     "pytest>=8.3.0",
     "pytest-asyncio>=0.25.0",
     "pytest-sugar",

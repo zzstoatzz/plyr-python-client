@@ -1,0 +1,42 @@
+[project]
+name = "digital-audio-claudespace"
+dynamic = ["version"]
+description = "a toolkit for making music with code"
+readme = "README.md"
+authors = [{ name = "zzstoatzz", email = "thrast36@gmail.com" }]
+requires-python = ">=3.10"
+license = "MIT"
+
+keywords = ["audio", "music", "synthesis", "ffmpeg", "dsp", "sound"]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Multimedia :: Sound/Audio :: Sound Synthesis",
+    "Typing :: Typed",
+]
+
+dependencies = []
+
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning>=0.7.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dac"]
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "pep440"
+bump = true
+fallback-version = "0.0.0"
