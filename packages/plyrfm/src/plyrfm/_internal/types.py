@@ -4,8 +4,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 from uuid import UUID
+
+from pydantic import BaseModel
+
+
+class TrackPatch(BaseModel):
+    """fields that can be updated on a track."""
+
+    title: str | None = None
+    album: str | None = None
+    features: str | None = None
+    tags: list[str] | None = None
+    image: Path | str | None = None
+
+    model_config = {"extra": "forbid"}
 
 
 @dataclass

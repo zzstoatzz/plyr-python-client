@@ -30,3 +30,4 @@ uv.lock
 # environment
 .env
 .env.*
+samples/

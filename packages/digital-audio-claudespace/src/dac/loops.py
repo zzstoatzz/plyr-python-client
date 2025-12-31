@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from dac._internal.ffmpeg import build_note_filter, run_ffmpeg
+from dac._internal.loops import Loop, Waveform
 from dac._internal.notes import note_to_freq
 
 # golden ratio for natural-feeling stagger offsets
@@ -10,13 +11,14 @@ PHI = 0.618033988749895
 
 
 def render(
-    loops: list[tuple],
+    loops: list[Loop | dict],
     duration: float,
     output: str | Path,
     *,
     amp: float = 0.08,
     attack: float = 0.35,
     release: float = 0.45,
+    wave: Waveform = "sine",
     fade_in: float = 6.0,
     fade_out: float = 10.0,
     stagger: bool = True,
@@ -28,15 +30,21 @@ def render(
     as the notes drift in and out of phase with each other.
 
     args:
-        loops: list of tuples, each can be:
-            - (note, loop_length, note_duration)
-            - (note, loop_length, note_duration, amplitude)
-            - (note, loop_length, note_duration, amplitude, start_offset)
+        loops: list of Loop objects or dicts with:
+            - note: pitch name (e.g. "A2", "C#4")
+            - loop_length: seconds between repetitions
+            - note_duration: how long each note sounds
+            - amplitude: volume (optional, uses default)
+            - start_offset: when to start (optional, auto-staggers)
+            - attack: attack as fraction of note duration (optional)
+            - release: release as fraction of note duration (optional)
+            - wave: waveform - sine, square, triangle, saw (optional)
         duration: total piece length in seconds
         output: path for the output file
         amp: default amplitude if not specified per-loop
-        attack: attack time as fraction of note duration
-        release: release time as fraction of note duration
+        attack: default attack time as fraction of note duration
+        release: default release time as fraction of note duration
+        wave: default waveform (sine, square, triangle, saw)
         fade_in: overall fade in time (seconds)
         fade_out: overall fade out time (seconds)
         stagger: offset loops so they don't all start at t=0
@@ -44,35 +52,52 @@ def render(
 
     example:
         render([
-            ("A2", 11.3, 8, 0.07),   # bass, repeats every 11.3s
-            ("E3", 13.7, 9, 0.05),   # fifth, different phase
-            ("B3", 9.1, 7, 0.04),    # 9th for color
+            {"note": "A2", "loop_length": 11.3, "note_duration": 8},
+            {"note": "E3", "loop_length": 13.7, "note_duration": 9, "attack": 0.5},
+            {"note": "C6", "loop_length": 7.0, "note_duration": 0.3, "wave": "triangle"},
         ], duration=120, output="ambient.wav")
     """
     output = Path(output)
 
     # expand loops into individual note events
-    events: list[tuple[float, float, float, float]] = []
+    # each event: (start, freq, dur, amp, attack_ratio, release_ratio, wave)
+    events: list[tuple[float, float, float, float, float, float, Waveform]] = []
 
     for i, loop in enumerate(loops):
-        note, loop_len, note_dur = loop[0], loop[1], loop[2]
-        loop_amp = loop[3] if len(loop) > 3 else amp
+        # coerce to Loop model if dict
+        spec = loop if isinstance(loop, Loop) else Loop.model_validate(loop)
+        resolved = spec.resolve(
+            default_amp=amp,
+            default_attack=attack,
+            default_release=release,
+            default_wave=wave,
+        )
 
         # determine start offset
-        if len(loop) > 4:
-            start_offset = float(loop[4])
+        if resolved.start_offset is not None:
+            start_offset = resolved.start_offset
         elif stagger:
-            start_offset = (loop_len * PHI * i) % loop_len
+            start_offset = (resolved.loop_length * PHI * i) % resolved.loop_length
         else:
             start_offset = 0.0
 
-        freq = note_to_freq(note)
+        freq = note_to_freq(resolved.note)
         t = start_offset
 
         while t < duration:
-            if t + note_dur <= duration + note_dur * 0.5:
-                events.append((t, freq, min(note_dur, duration - t), loop_amp))
-            t += loop_len
+            if t + resolved.note_duration <= duration + resolved.note_duration * 0.5:
+                events.append(
+                    (
+                        t,
+                        freq,
+                        min(resolved.note_duration, duration - t),
+                        resolved.amplitude,
+                        resolved.attack,
+                        resolved.release,
+                        resolved.wave,
+                    )
+                )
+            t += resolved.loop_length
 
     if not events:
         raise ValueError("no events generated")
@@ -81,15 +106,24 @@ def render(
     parts: list[str] = []
     labels: list[str] = []
 
-    for i, (start, freq, dur, note_amp) in enumerate(events):
-        att = dur * attack
-        rel = dur * release
+    for i, (
+        start,
+        freq,
+        dur,
+        note_amp,
+        note_attack,
+        note_release,
+        note_wave,
+    ) in enumerate(events):
+        att = dur * note_attack
+        rel = dur * note_release
         label = f"n{i}"
 
         part = build_note_filter(
             freq,
             dur,
             note_amp,
+            wave=note_wave,
             attack=att,
             release=rel,
             delay_ms=int(start * 1000),

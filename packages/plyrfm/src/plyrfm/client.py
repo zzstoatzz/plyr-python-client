@@ -9,7 +9,7 @@ from pathlib import Path
 import httpx
 
 from plyrfm._internal.config import Settings, get_settings
-from plyrfm._internal.types import Track, UploadResult
+from plyrfm._internal.types import Track, TrackPatch, UploadResult
 
 
 def _get_user_agent(client_name: str = "plyrfm") -> str:
@@ -187,23 +187,20 @@ class PlyrClient(_BaseClient):
 
         return self._poll_upload(upload_id, title, timeout=timeout)
 
-    def update_track(
-        self,
-        track_id: int,
-        *,
-        title: str | None = None,
-        album: str | None = None,
-        image: Path | str | None = None,
-    ) -> Track:
+    def update_track(self, track_id: int, patch: TrackPatch) -> Track:
         """update track metadata. requires auth + ownership."""
         data: dict[str, str] = {}
-        if title is not None:
-            data["title"] = title
-        if album is not None:
-            data["album"] = album
+        if patch.title is not None:
+            data["title"] = patch.title
+        if patch.album is not None:
+            data["album"] = patch.album
+        if patch.features is not None:
+            data["features"] = patch.features
+        if patch.tags is not None:
+            data["tags"] = json.dumps(patch.tags)
 
-        if image is not None:
-            image_path = Path(image)
+        if patch.image is not None:
+            image_path = Path(patch.image)
             if not image_path.exists():
                 msg = f"image not found: {image_path}"
                 raise FileNotFoundError(msg)
@@ -415,23 +412,20 @@ class AsyncPlyrClient(_BaseClient):
 
         return await self._poll_upload(upload_id, title, timeout=timeout)
 
-    async def update_track(
-        self,
-        track_id: int,
-        *,
-        title: str | None = None,
-        album: str | None = None,
-        image: Path | str | None = None,
-    ) -> Track:
+    async def update_track(self, track_id: int, patch: TrackPatch) -> Track:
         """update track metadata. requires auth + ownership."""
         data: dict[str, str] = {}
-        if title is not None:
-            data["title"] = title
-        if album is not None:
-            data["album"] = album
+        if patch.title is not None:
+            data["title"] = patch.title
+        if patch.album is not None:
+            data["album"] = patch.album
+        if patch.features is not None:
+            data["features"] = patch.features
+        if patch.tags is not None:
+            data["tags"] = json.dumps(patch.tags)
 
-        if image is not None:
-            image_path = Path(image)
+        if patch.image is not None:
+            image_path = Path(patch.image)
             if not image_path.exists():
                 msg = f"image not found: {image_path}"
                 raise FileNotFoundError(msg)

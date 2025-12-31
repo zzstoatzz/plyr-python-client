@@ -78,6 +78,35 @@ def build_note_filter(
     return ",".join(filters) + f"[{label}]"
 
 
+def build_sample_filter(
+    sample_path: str,
+    amplitude: float,
+    *,
+    attack: float = 0.0,
+    release: float = 0.0,
+    delay_ms: int = 0,
+    label: str = "s0",
+    fade_curve: FadeCurve = "tri",
+) -> str:
+    """build a filter that plays a sample with envelope and delay."""
+    # load sample and apply volume
+    filters = [f"amovie={sample_path},volume={amplitude}"]
+
+    # get sample duration for release timing (we'll need to handle this differently)
+    # for now, assume release starts near the end of the sample
+
+    if attack > 0:
+        filters.append(f"afade=t=in:d={attack}:curve={fade_curve}")
+    if release > 0:
+        # apply fade out - ffmpeg will handle timing automatically with 'out' type
+        filters.append(f"afade=t=out:d={release}:curve={fade_curve}")
+
+    if delay_ms > 0:
+        filters.append(f"adelay={delay_ms}:all=1")
+
+    return ",".join(filters) + f"[{label}]"
+
+
 def run_ffmpeg(
     graph: str,
     output: Path,

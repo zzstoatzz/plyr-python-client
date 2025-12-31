@@ -1,26 +1,23 @@
 """digital audio claudespace - programmatic music via ffmpeg.
 
-two approaches:
-- events: place notes at specific times on a timeline
-- loops: eno-style phasing loops that drift in and out of phase
-
 example:
-    from dac import events, loops, chords
+    from dac.track import Sample, Sine, phase, mix
+    from pathlib import Path
 
-    # timeline
-    events.render([
-        (0, "C2", 8),
-        (0, chords.major("C3"), 4),
-    ], "piece.wav")
+    # create tracks with effects
+    harp = Sample("samples/harp/KSHarp_E3_mf1.wav").volume(0.4).lowpass(1500)
+    pad = Sine(110, 8).volume(0.3).fade_in(1).tremolo(0.5, 0.3)
 
-    # phasing loops
-    loops.render([
-        ("A2", 11.3, 8, 0.07),
-        ("E3", 13.7, 9, 0.05),
-    ], duration=120, output="ambient.wav")
+    # phase them at different intervals
+    tracks = [
+        *phase(harp, interval=8.7, duration=90),
+        *phase(pad, interval=11.3, duration=90, offset=2),
+    ]
+
+    mix(tracks, Path("output.wav"), duration=90)
 """
 
-from dac import chords, events, loops
+from dac import chords, events, loops, track
 from dac._internal.notes import Waveform
 
 __all__ = [
@@ -28,4 +25,5 @@ __all__ = [
     "chords",
     "events",
     "loops",
+    "track",
 ]

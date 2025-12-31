@@ -23,7 +23,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 
-dependencies = []
+dependencies = [
+    "pydantic>=2.12.5",
+]
 
 [build-system]
 requires = ["hatchling", "uv-dynamic-versioning>=0.7.0"]

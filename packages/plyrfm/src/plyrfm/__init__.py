@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.metadata
 
 from plyrfm.client import AsyncPlyrClient, PlyrClient
-from plyrfm._internal.types import Album, Artist, Track, UploadResult
+from plyrfm._internal.types import Album, Artist, Track, TrackPatch, UploadResult
 
 try:
     __version__ = importlib.metadata.version("plyrfm")
@@ -18,6 +18,7 @@ __all__ = [
     "AsyncPlyrClient",
     "PlyrClient",
     "Track",
+    "TrackPatch",
     "UploadResult",
     "__version__",
 ]
