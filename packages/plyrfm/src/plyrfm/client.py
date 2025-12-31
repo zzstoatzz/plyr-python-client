@@ -9,7 +9,13 @@ from pathlib import Path
 import httpx
 
 from plyrfm._internal.config import Settings, get_settings
-from plyrfm._internal.types import Track, TrackPatch, UploadResult
+from plyrfm._internal.types import (
+    ArtistProfile,
+    ArtistProfilePatch,
+    Track,
+    TrackPatch,
+    UploadResult,
+)
 
 
 def _get_user_agent(client_name: str = "plyrfm") -> str:
@@ -142,6 +148,35 @@ class PlyrClient(_BaseClient):
         response.raise_for_status()
         data = response.json()
         return [Track.from_dict(t) for t in data.get("tracks", [])]
+
+    def get_artist_profile(self) -> ArtistProfile:
+        """get your artist profile. requires auth."""
+        response = self._client.get(
+            self._url("/artists/me"),
+            headers=self._auth_headers,
+        )
+        response.raise_for_status()
+        return ArtistProfile.from_dict(response.json())
+
+    def update_artist_profile(self, patch: ArtistProfilePatch) -> ArtistProfile:
+        """update your artist profile. requires auth."""
+        data: dict[str, str | bool] = {}
+        if patch.bio is not None:
+            data["bio"] = patch.bio
+        if patch.display_name is not None:
+            data["display_name"] = patch.display_name
+        if patch.support_url is not None:
+            data["support_url"] = patch.support_url
+        if patch.show_liked_on_profile is not None:
+            data["show_liked_on_profile"] = patch.show_liked_on_profile
+
+        response = self._client.put(
+            self._url("/artists/me"),
+            headers=self._auth_headers,
+            json=data,
+        )
+        self._handle_error_response(response)
+        return ArtistProfile.from_dict(response.json())
 
     def upload(
         self,
@@ -367,6 +402,35 @@ class AsyncPlyrClient(_BaseClient):
         response.raise_for_status()
         data = response.json()
         return [Track.from_dict(t) for t in data.get("tracks", [])]
+
+    async def get_artist_profile(self) -> ArtistProfile:
+        """get your artist profile. requires auth."""
+        response = await self._client.get(
+            self._url("/artists/me"),
+            headers=self._auth_headers,
+        )
+        response.raise_for_status()
+        return ArtistProfile.from_dict(response.json())
+
+    async def update_artist_profile(self, patch: ArtistProfilePatch) -> ArtistProfile:
+        """update your artist profile. requires auth."""
+        data: dict[str, str | bool] = {}
+        if patch.bio is not None:
+            data["bio"] = patch.bio
+        if patch.display_name is not None:
+            data["display_name"] = patch.display_name
+        if patch.support_url is not None:
+            data["support_url"] = patch.support_url
+        if patch.show_liked_on_profile is not None:
+            data["show_liked_on_profile"] = patch.show_liked_on_profile
+
+        response = await self._client.put(
+            self._url("/artists/me"),
+            headers=self._auth_headers,
+            json=data,
+        )
+        self._handle_error_response(response)
+        return ArtistProfile.from_dict(response.json())
 
     async def upload(
         self,

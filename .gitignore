@@ -31,3 +31,4 @@ uv.lock
 .env
 .env.*
 samples/
+pieces/.raw/

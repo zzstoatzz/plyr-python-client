@@ -25,12 +25,60 @@ class TrackPatch(BaseModel):
 
 @dataclass
 class Artist:
-    """artist profile."""
+    """artist profile (minimal, from track context)."""
 
     did: str
     handle: str
     display_name: str | None = None
     avatar_url: str | None = None
+
+
+@dataclass
+class ArtistProfile:
+    """full artist profile."""
+
+    did: str
+    handle: str
+    display_name: str | None = None
+    bio: str | None = None
+    avatar_url: str | None = None
+    support_url: str | None = None
+    show_liked_on_profile: bool = False
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ArtistProfile:
+        """create from API response."""
+        created_at = None
+        if created_str := data.get("created_at"):
+            created_at = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
+        updated_at = None
+        if updated_str := data.get("updated_at"):
+            updated_at = datetime.fromisoformat(updated_str.replace("Z", "+00:00"))
+
+        return cls(
+            did=data["did"],
+            handle=data["handle"],
+            display_name=data.get("display_name"),
+            bio=data.get("bio"),
+            avatar_url=data.get("avatar_url"),
+            support_url=data.get("support_url"),
+            show_liked_on_profile=data.get("show_liked_on_profile", False),
+            created_at=created_at,
+            updated_at=updated_at,
+        )
+
+
+class ArtistProfilePatch(BaseModel):
+    """fields that can be updated on an artist profile."""
+
+    bio: str | None = None
+    display_name: str | None = None
+    support_url: str | None = None
+    show_liked_on_profile: bool | None = None
+
+    model_config = {"extra": "forbid"}
 
 
 @dataclass

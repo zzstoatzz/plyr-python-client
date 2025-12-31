@@ -5,7 +5,15 @@ from __future__ import annotations
 import importlib.metadata
 
 from plyrfm.client import AsyncPlyrClient, PlyrClient
-from plyrfm._internal.types import Album, Artist, Track, TrackPatch, UploadResult
+from plyrfm._internal.types import (
+    Album,
+    Artist,
+    ArtistProfile,
+    ArtistProfilePatch,
+    Track,
+    TrackPatch,
+    UploadResult,
+)
 
 try:
     __version__ = importlib.metadata.version("plyrfm")
@@ -15,6 +23,8 @@ except importlib.metadata.PackageNotFoundError:
 __all__ = [
     "Album",
     "Artist",
+    "ArtistProfile",
+    "ArtistProfilePatch",
     "AsyncPlyrClient",
     "PlyrClient",
     "Track",

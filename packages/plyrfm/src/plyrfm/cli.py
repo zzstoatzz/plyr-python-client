@@ -9,6 +9,7 @@ import httpx
 from rich.console import Console
 from rich.table import Table
 
+from plyrfm._internal.types import ArtistProfilePatch
 from plyrfm.client import PlyrClient
 
 console = Console()
@@ -188,6 +189,49 @@ def cmd_me() -> None:
     console.print(f"[cyan]handle:[/] {info['handle']}")
 
 
+def cmd_profile() -> None:
+    """show artist profile (requires auth)."""
+    client = _get_client(require_auth=True)
+
+    try:
+        profile = client.get_artist_profile()
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 401:
+            _error("invalid or expired token")
+        raise
+
+    console.print(f"[cyan]handle:[/] {profile.handle}")
+    console.print(f"[cyan]display_name:[/] {profile.display_name or '-'}")
+    console.print(f"[cyan]bio:[/] {profile.bio or '-'}")
+    console.print(f"[cyan]support_url:[/] {profile.support_url or '-'}")
+
+
+def cmd_update_profile(
+    bio: str | None = None,
+    display_name: str | None = None,
+    support_url: str | None = None,
+) -> None:
+    """update artist profile (requires auth)."""
+    client = _get_client(require_auth=True)
+
+    patch = ArtistProfilePatch(
+        bio=bio,
+        display_name=display_name,
+        support_url=support_url,
+    )
+
+    try:
+        profile = client.update_artist_profile(patch)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 401:
+            _error("invalid or expired token")
+        raise
+
+    console.print("[green]updated profile[/]")
+    console.print(f"[cyan]display_name:[/] {profile.display_name or '-'}")
+    console.print(f"[cyan]bio:[/] {profile.bio or '-'}")
+
+
 # -----------------------------------------------------------------------------
 # main
 # -----------------------------------------------------------------------------
@@ -208,6 +252,9 @@ USAGE = """\
     download <id> [--output FILE] download a track
     delete <id> [--yes]           delete a track
     me                            show current user
+    profile                       show artist profile
+    update-profile [--bio TEXT] [--display-name NAME] [--support-url URL]
+                                  update artist profile
 
 [bold]auth setup:[/]
     1. create a token at plyr.fm/portal -> "developer tokens"
@@ -220,6 +267,7 @@ USAGE = """\
     plyrfm upload track.mp3 "My Song" -t ai      # with tag
     plyrfm upload track.mp3 "My Song" -t ai -t podcast  # multiple tags
     plyrfm download 42 -o song.mp3               # requires auth
+    plyrfm update-profile --bio "music maker"    # update bio
 """
 
 
@@ -294,6 +342,27 @@ def main() -> None:
 
     elif cmd == "me":
         cmd_me()
+
+    elif cmd == "profile":
+        cmd_profile()
+
+    elif cmd == "update-profile":
+        bio = None
+        display_name = None
+        support_url = None
+        if "--bio" in args:
+            idx = args.index("--bio")
+            if idx + 1 < len(args):
+                bio = args[idx + 1]
+        if "--display-name" in args:
+            idx = args.index("--display-name")
+            if idx + 1 < len(args):
+                display_name = args[idx + 1]
+        if "--support-url" in args:
+            idx = args.index("--support-url")
+            if idx + 1 < len(args):
+                support_url = args[idx + 1]
+        cmd_update_profile(bio=bio, display_name=display_name, support_url=support_url)
 
     else:
         _error(f"unknown command: {cmd}")
