@@ -51,15 +51,16 @@ def render_loops(
     sample_rate: int = 48000,
     fade_in: float = 6.0,
     fade_out: float = 10.0,
+    stagger: bool = True,
 ) -> Path:
     """render phasing loops to audio.
 
-    loops: list of (note, loop_length, note_duration) tuples
-        - note: "C3" etc
-        - loop_length: how often the loop repeats (seconds)
-        - note_duration: how long each note sounds (seconds)
+    loops: list of (note, loop_length, note_duration) or
+           (note, loop_length, note_duration, amplitude) or
+           (note, loop_length, note_duration, amplitude, start_offset) tuples
 
     duration: total piece length in seconds
+    stagger: if True, automatically offset loops so they don't all start at 0
     """
     if shutil.which("ffmpeg") is None:
         raise RuntimeError("ffmpeg not found")
@@ -70,13 +71,23 @@ def render_loops(
     # expand loops into individual note events
     events = []  # (start_time, freq, note_dur, amp)
 
-    for loop in loops:
+    for i, loop in enumerate(loops):
         note, loop_len, note_dur = loop[0], loop[1], loop[2]
         loop_amp = loop[3] if len(loop) > 3 else amp
+        # explicit start offset, or auto-stagger based on loop index
+        if len(loop) > 4:
+            start_offset = loop[4]
+        elif stagger:
+            # stagger each loop by a fraction of its loop length
+            # using golden ratio for good distribution
+            start_offset = (loop_len * 0.618 * i) % loop_len
+        else:
+            start_offset = 0.0
+
         freq = _note_to_freq(note)
 
         # generate all occurrences of this loop
-        t = 0.0
+        t = start_offset
         while t < duration:
             # only add if the note fits within duration
             if t + note_dur <= duration + note_dur * 0.5:
