@@ -16,7 +16,7 @@ def render(
     release: float = 0.15,
     fade_in: float = 2.0,
     fade_out: float = 4.0,
-    sample_rate: int = 48000,
+    sample_rate: int = 48_000,
 ) -> Path:
     """render a timeline of note events to audio.
 
