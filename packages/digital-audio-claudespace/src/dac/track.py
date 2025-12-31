@@ -75,6 +75,19 @@ class Track:
         self._effects.append(f"aecho=0.8:0.9:{delay_ms}:{decay}")
         return self
 
+    def pad(self, total_duration: float) -> "Track":
+        """pad with silence to a fixed duration (for loop cycles)."""
+        self._effects.append(f"apad=whole_dur={total_duration}")
+        return self
+
+    def reverb(self, wet: float = 0.3, decay: float = 0.5) -> "Track":
+        """simple reverb using delays."""
+        # simulate reverb with multiple echoes
+        self._effects.append(
+            f"aecho=0.8:{wet}:60|120|180:{decay}|{decay * 0.7}|{decay * 0.5}"
+        )
+        return self
+
     # --- compilation ---
 
     def to_filter(self) -> str:

@@ -17,13 +17,14 @@ example:
     mix(tracks, Path("output.wav"), duration=90)
 """
 
-from dac import chords, events, loops, track
-from dac._internal.notes import Waveform
+from dac import chords, track
+from dac.track import Sample, Sine, mix, phase
 
 __all__ = [
-    "Waveform",
+    "Sample",
+    "Sine",
     "chords",
-    "events",
-    "loops",
+    "mix",
+    "phase",
     "track",
 ]
