@@ -3,6 +3,57 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+# --- note frequencies (equal temperament, A4 = 440Hz) ---
+
+NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+
+def note_to_freq(name: str) -> float:
+    """convert note name to frequency. e.g. 'A4' -> 440, 'C#5' -> 554.37"""
+    # parse note name and octave
+    if len(name) == 2:
+        note, octave = name[0], int(name[1])
+    elif len(name) == 3:
+        note, octave = name[:2], int(name[2])
+    else:
+        raise ValueError(f"invalid note name: {name}")
+
+    # semitones from A4
+    note_idx = NOTE_NAMES.index(note)
+    a4_idx = NOTE_NAMES.index("A")
+    semitones = (octave - 4) * 12 + (note_idx - a4_idx)
+
+    return 440.0 * (2 ** (semitones / 12))
+
+
+# --- tempo and timing ---
+
+
+@dataclass
+class Tempo:
+    """musical time - converts beats to seconds."""
+
+    bpm: float
+    time_sig: tuple[int, int] = (4, 4)  # (beats per measure, beat unit)
+
+    @property
+    def beat(self) -> float:
+        """duration of one beat in seconds."""
+        return 60.0 / self.bpm
+
+    @property
+    def measure(self) -> float:
+        """duration of one measure in seconds."""
+        return self.beat * self.time_sig[0]
+
+    def beats(self, n: float) -> float:
+        """convert beats to seconds."""
+        return n * self.beat
+
+    def at_beat(self, beat: float) -> int:
+        """convert beat number to delay in milliseconds (1-indexed)."""
+        return int((beat - 1) * self.beat * 1000)
+
 
 @dataclass
 class RenderConfig:
@@ -10,16 +61,17 @@ class RenderConfig:
 
     duration: float
     sample_rate: int = 48000
-    channels: int = 2
+    channels: int = 1  # mono by default - stereo causes -3dB drop from mono sources
 
 
 class Track:
     """an audio source with chainable effects."""
 
-    def __init__(self, source: str, label: str = "t0"):
+    def __init__(self, source: str, label: str = "t0", duration: float | None = None):
         self._source = source  # ffmpeg source expression
         self._effects: list[str] = []
         self._label = label
+        self._duration = duration  # track duration if known
 
     # --- effects (return self for chaining) ---
 
@@ -36,11 +88,21 @@ class Track:
     def fade_out(
         self, duration: float, start: float | None = None, curve: str = "tri"
     ) -> "Track":
-        """fade out to silence."""
+        """fade out to silence.
+
+        if start is not specified, uses track duration to fade at the end.
+        raises ValueError if duration is unknown and start not specified.
+        """
         if start is not None:
-            self._effects.append(f"afade=t=out:st={start}:d={duration}:curve={curve}")
+            st = start
+        elif self._duration is not None:
+            st = max(0, self._duration - duration)
         else:
-            self._effects.append(f"afade=t=out:d={duration}:curve={curve}")
+            raise ValueError(
+                "fade_out requires start time when track duration is unknown. "
+                "use fade_out(duration, start=X) or use Sine/Sample which have known durations."
+            )
+        self._effects.append(f"afade=t=out:st={st}:d={duration}:curve={curve}")
         return self
 
     def trim(self, duration: float, start: float = 0) -> "Track":
@@ -176,7 +238,7 @@ class Sine(Track):
         label: str = "t0",
     ):
         source = f"aevalsrc=exprs='{amplitude}*(sin(2*PI*{freq}*t))':s={sample_rate}:d={duration}"
-        super().__init__(source, label)
+        super().__init__(source, label, duration=duration)
 
 
 class Sample(Track):
@@ -198,6 +260,8 @@ def phase(
 
     this is the core eno concept - the same sound repeating at its own interval,
     drifting in and out of phase with other sounds.
+
+    each copy is padded to the full duration to prevent amix dropout issues.
     """
     copies = []
     t = offset
@@ -207,6 +271,7 @@ def phase(
         copy = Track(track._source, label=f"{track._label}_{i}")
         copy._effects = track._effects.copy()
         copy.delay(int(t * 1000))
+        copy.pad(duration)  # extend to full duration with silence
         copies.append(copy)
         t += interval
         i += 1
@@ -224,6 +289,9 @@ def mix(
     """mix multiple tracks to a file.
 
     accepts either a RenderConfig or individual kwargs for backwards compatibility.
+
+    note: amix divides by track count. we compensate by boosting the output
+    so that input amplitudes map predictably to output levels.
     """
     import subprocess
 
