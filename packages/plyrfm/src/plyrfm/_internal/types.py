@@ -79,6 +79,7 @@ class Track(BaseModel):
     album: Album | None = None
     image_url: str | None = None
     audio_url: str | None = Field(default=None, alias="r2_url")
+    tags: list[str] = Field(default_factory=list)
     created_at: datetime | None = None
 
     model_config = {"populate_by_name": True}
