@@ -62,6 +62,7 @@ class RenderConfig:
     duration: float
     sample_rate: int = 48000
     channels: int = 1  # mono by default - stereo causes -3dB drop from mono sources
+    limit_db: float | None = -1.0  # apply limiter to prevent clipping (None = no limit)
 
 
 class Track:
@@ -76,8 +77,13 @@ class Track:
     # --- effects (return self for chaining) ---
 
     def volume(self, level: float) -> "Track":
-        """adjust volume (1.0 = unity)."""
+        """adjust volume (1.0 = unity, 0.5 = half)."""
         self._effects.append(f"volume={level}")
+        return self
+
+    def volume_db(self, db: float) -> "Track":
+        """adjust volume in decibels (0 = unity, -6 = half, -20 = 1/10th)."""
+        self._effects.append(f"volume={db}dB")
         return self
 
     def fade_in(self, duration: float, curve: str = "tri") -> "Track":
@@ -306,9 +312,16 @@ def mix(
     parts = [t.to_filter() for t in tracks]
     labels = [f"[{t._label}]" for t in tracks]
 
-    mix_filter = (
-        f"{''.join(labels)}amix=inputs={len(tracks)}:duration=longest:normalize=0[out]"
-    )
+    # build mix chain: amix -> volume adjust -> optional limiter
+    # amix normalize=0 means no per-track normalization (we control amplitudes)
+    # we add volume reduction to prevent clipping from summing, then limit
+    amix = f"{''.join(labels)}amix=inputs={len(tracks)}:duration=longest:normalize=0"
+    if cfg.limit_db is not None:
+        # reduce volume to bring peaks below 0, then limit to prevent any remaining clips
+        limit_linear = 10 ** (cfg.limit_db / 20)
+        mix_filter = f"{amix},volume=0.18,alimiter=limit={limit_linear}[out]"
+    else:
+        mix_filter = f"{amix}[out]"
     graph = ";".join(parts) + ";" + mix_filter
 
     output.parent.mkdir(parents=True, exist_ok=True)

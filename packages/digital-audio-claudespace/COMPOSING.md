@@ -78,7 +78,7 @@ tracks = [
 ]
 ```
 
-this approach gives full control. you're writing a score. see `pieces/northfield.py`.
+this approach gives full control. you're writing a score.
 
 ### 2. eno-style incommensurable loops
 
@@ -113,7 +113,62 @@ the `phase()` function creates copies of a sample at regular intervals across th
 
 key principle: choose notes that are "mutually compatible" - they should sound acceptable in any combination, because the system will eventually generate all of them.
 
-see `pieces/fading.py`.
+## gymnopédie-style voice leading
+
+satie's gymnopédies use I→IV motion with common tones and stepwise voice leading. here's how to achieve this with dac.
+
+### the technique
+
+use a **continuous pedal tone** as a common tone between chords. the pedal stays static while inner voices move stepwise.
+
+example: Dmaj7 ↔ Gmaj7 with F#4 pedal
+
+```
+Gmaj7: G2 (bass) - B3 - D4 - F#4 (pedal)
+Dmaj7: D3 (bass) - A3 - C#4 - F#4 (pedal)
+
+voice leading:
+  bass:  G2 → D3  (fifth motion)
+  mid:   B3 → A3  (step down)
+  upper: D4 → C#4 (step down)
+  top:   F#4      (static pedal)
+```
+
+the F#4 works as the 7th of Gmaj7 and 3rd of Dmaj7 - a perfect pivot.
+
+### code pattern
+
+```python
+from dac.track import Sine, mix, phase
+from pathlib import Path
+
+duration = 90
+cycle = 16  # seconds per chord
+
+# continuous pedal - stays for entire duration
+pedal = Sine(370, duration, amplitude=0.1, label='pedal').lowpass(600)
+
+# Gmaj7 voices (8 seconds each, repeating every 16s)
+g_bass = Sine(98, 8, amplitude=0.15, label='gb').lowpass(300).fade_in(2).fade_out(2)
+g_b3 = Sine(247, 8, amplitude=0.08, label='gb3').lowpass(500).fade_in(2).fade_out(2)
+g_d4 = Sine(294, 8, amplitude=0.06, label='gd4').lowpass(500).fade_in(2).fade_out(2)
+
+# Dmaj7 voices - delayed by 8s to alternate
+d_bass = Sine(147, 8, amplitude=0.15, label='db').lowpass(300).fade_in(2).fade_out(2).delay(8000)
+d_a3 = Sine(220, 8, amplitude=0.08, label='da3').lowpass(500).fade_in(2).fade_out(2).delay(8000)
+d_c4 = Sine(277, 8, amplitude=0.06, label='dc4').lowpass(500).fade_in(2).fade_out(2).delay(8000)
+
+# phase out copies for full duration
+g_voices = (phase(g_bass, interval=cycle, duration=duration) +
+            phase(g_b3, interval=cycle, duration=duration) +
+            phase(g_d4, interval=cycle, duration=duration))
+d_voices = (phase(d_bass, interval=cycle, duration=duration) +
+            phase(d_a3, interval=cycle, duration=duration) +
+            phase(d_c4, interval=cycle, duration=duration))
+
+all_tracks = [pedal] + g_voices + d_voices
+mix(all_tracks, Path('/tmp/gymno.wav'), duration=duration)
+```
 
 ## lessons learned
 
@@ -121,7 +176,7 @@ see `pieces/fading.py`.
 
 - **continuous textures** - stream/wind/drone as a bed. keeps the piece alive during sparse moments.
 - **harmonic compatibility** - stick to one key. G major works well: G, A, B, D, E (+F# for lydian color).
-- **volume hierarchy** - background (0.03-0.06), drones (0.08-0.12), foreground (0.25-0.45).
+- **volume hierarchy** - background (0.05-0.1), drones (0.1-0.2), foreground (0.2-0.4).
 - **low anchors** - bass drones (G2 ~98hz) and low notes (A2, E3) provide grounding.
 - **slow fades** - 8-20 second fades feel natural. short fades feel abrupt.
 
@@ -145,12 +200,12 @@ see `pieces/fading.py`.
 ### upload a track
 
 ```bash
-# render the piece
-uv run python pieces/fading.py
+# render the piece (output to /tmp or your preferred location)
+uv run python my_piece.py
 
 # upload to plyr.fm
-plyrfm upload pieces/.raw/fading.wav "fading" \
-  --description "incommensurable loops in G major"
+plyrfm upload /tmp/output.wav "piece name" \
+  --description "description here"
 ```
 
 ### check your tracks
@@ -184,16 +239,16 @@ plyrfm delete <track_id>
 ## project structure
 
 ```
-pieces/
-  .raw/           # rendered wav files (gitignored)
-  fading.py       # eno-style incommensurable loops
-  northfield.py   # deliberate placement
-  warped.py       # effects demonstration
+src/dac/
+  __init__.py     # exports
+  track.py        # Track, Sine, Sample, phase(), mix()
+  chords.py       # chord construction helpers
+  live.py         # real-time synth and clips playback
+  _internal/      # note/frequency utilities
 
 samples/          # gitignored - see SAMPLES.md for sources
   harp/
   vibraphone/
-  glockenspiel/
   field/          # ambient textures (stream, wind)
 ```
 

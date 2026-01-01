@@ -1,6 +1,6 @@
 # digital audio claudespace
 
-a toolkit for making music with code.
+programmatic audio synthesis via ffmpeg.
 
 ## installation
 
@@ -12,89 +12,54 @@ requires `ffmpeg` on your PATH.
 
 ## usage
 
-### quick start with Song
+### synthesize and render
 
 ```python
-from dac import Song, render
+from dac import Sine, Sample, mix
+from pathlib import Path
 
-song = Song(bpm=120)
+# sine wave with effects
+drone = Sine(110, duration=10, amplitude=0.3).lowpass(200).fade_in(2)
 
-# add a melody using note names
-song.add_track([
-    "C4", "D4", "E4", "F4",
-    ("G4", 2),  # note with beat count
-    "-",        # rest
-    ("C4 E4 G4", 2),  # chord
-])
+# sample with effects
+harp = Sample("harp.wav").volume(0.4).delay(1000)
 
-render(song.build(), "song.wav")
+# render to file
+mix([drone, harp], Path("output.wav"), duration=10)
 ```
 
-### multi-track composition
+### real-time playback
 
 ```python
-from dac import Song, Noise, Layer, render
+from dac.live import synth, clips
 
-song = Song(bpm=90)
+# play continuous tones
+synth.play("bass", 55, 0.02)
+synth.play("mid", 220, 0.015)
+synth.freq("bass", 60)      # change frequency
+synth.vol("mid", 0.01)      # change volume
+synth.stop("bass")          # stop one
+synth.stopall()             # stop all
 
-# melody
-song.add_track([
-    ("E4", 2), ("G4", 2), ("A4", 2), ("G4", 2),
-    ("E4", 2), ("D4", 2), ("C4", 4),
-], waveform="triangle", velocity=0.4)
-
-# chord progression
-song.add_track([
-    ("C4 E4 G4", 4),  # C major
-    ("A3 C4 E4", 4),  # A minor
-    ("F3 A3 C4", 4),  # F major
-    ("G3 B3 D4", 4),  # G major
-], waveform="sine", velocity=0.25)
-
-# bass
-song.add_track([
-    ("C2", 4), ("A2", 4), ("F2", 4), ("G2", 4),
-], waveform="triangle", velocity=0.3)
-
-render(song.build(), "composition.wav")
+# loop audio files
+clips.play("pad", "ambient.wav", 0.5)
+clips.stop("pad")
 ```
 
-### low-level primitives
+### effects
 
 ```python
-from dac import Oscillator, Noise, Sequence, Layer, render
-
-# simple tone
-render(Oscillator(440).duration(2.0), "tone.wav")
-
-# chord with partials
-render(Oscillator(440).with_partials([660, 880]).duration(3.0), "chord.wav")
-
-# pink noise with fades
-render(Noise("pink").duration(10.0).fade_in(2.0).fade_out(3.0), "ambience.wav")
-
-# layer sounds
-layered = Layer([
-    Noise("pink").amplitude(0.2),
-    Oscillator(220).amplitude(0.5),
-]).duration(5.0)
-render(layered, "layered.wav")
+track.volume(0.5)           # amplitude
+track.delay(1000)           # ms offset
+track.fade_in(2)            # seconds
+track.fade_out(2)
+track.lowpass(500)          # hz
+track.highpass(100)
+track.trim(10)              # limit duration
+track.pad(20)               # extend with silence
+track.reverse()
+track.speed(0.8)            # tempo (0.5-2.0)
+track.pitch(2)              # semitones
+track.pan(-0.5)             # stereo (-1 to 1)
 ```
 
-## note names
-
-standard notation: `C4` (middle C), `A4` (440 Hz), `F#5`, `Bb3`
-
-## waveforms
-
-- `sine` - pure tone (default)
-- `square` - retro/chiptune character
-- `triangle` - softer than square
-- `saw` - bright, buzzy
-
-## noise colors
-
-- `white` - all frequencies equal
-- `pink` - natural, balanced
-- `brown` - deep, rumbling
-- `blue` - bright, hissy

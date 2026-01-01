@@ -17,14 +17,23 @@ example:
     mix(tracks, Path("output.wav"), duration=90)
 """
 
-from dac import chords, track
-from dac.track import RenderConfig, Sample, Sine, mix, phase
+from dac import chords, compose, track
+from dac.compose import DrumKit, DrumSound, Humanize, Pedal, Phrase, Voice
+from dac.track import RenderConfig, Sample, Sine, Tempo, mix, phase
 
 __all__ = [
+    "DrumKit",
+    "DrumSound",
+    "Humanize",
+    "Pedal",
+    "Phrase",
     "RenderConfig",
     "Sample",
     "Sine",
+    "Tempo",
+    "Voice",
     "chords",
+    "compose",
     "mix",
     "phase",
     "track",

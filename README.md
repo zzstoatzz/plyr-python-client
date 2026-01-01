@@ -1,15 +1,42 @@
-# plyr-python-client
+# audio tools
 
-python packages for [plyr.fm](https://plyr.fm).
+monorepo for audio-related python packages.
 
 ## packages
 
 | package | description | install |
 |---------|-------------|---------|
-| [plyrfm](./packages/plyrfm) | SDK + CLI | `uv add plyrfm` |
+| [dac](./packages/digital-audio-claudespace) | programmatic music synthesis via ffmpeg | `uv add dac` |
+| [plyrfm](./packages/plyrfm) | SDK + CLI for [plyr.fm](https://plyr.fm) | `uv add plyrfm` |
 | [plyrfm-mcp](./packages/plyrfm-mcp) | MCP server for LLM clients | `uv add plyrfm-mcp` |
 
-## quick start
+## dac (digital audio claudespace)
+
+compose music programmatically using sine waves, samples, and effects:
+
+```python
+from dac import Sine, Sample, mix, Tempo
+from dac.compose import Voice, Phrase, DrumKit
+
+tempo = Tempo(bpm=90)
+
+# melodic phrase
+melody = Phrase(["C4", "E4", "G4", "C5"])
+tracks = melody.render(start_beat=1, tempo=tempo)
+
+# add drums
+kit = DrumKit(kick=DrumSound(...), snare=DrumSound(...))
+tracks.append(kit.render_kick(1, tempo))
+
+mix(tracks, "output.wav", duration=10)
+```
+
+see [dac README](./packages/digital-audio-claudespace/README.md) for details.
+
+## plyrfm
+
+<details>
+<summary>SDK + CLI for plyr.fm</summary>
 
 ### SDK
 
@@ -40,15 +67,15 @@ use the hosted server with claude code:
 claude mcp add-json plyr-fm '{"type": "http", "url": "https://plyrfm.fastmcp.app/mcp", "headers": {"x-plyr-token": "YOUR_TOKEN"}}'
 ```
 
-or run your own server locally:
+or run locally:
 
 ```bash
 PLYR_TOKEN="your_token" uvx plyrfm-mcp
 ```
 
-## auth
-
 get a developer token at [plyr.fm/portal](https://plyr.fm/portal) -> "developer tokens"
+
+</details>
 
 ## license
 
