@@ -3,29 +3,6 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-# --- note frequencies (equal temperament, A4 = 440Hz) ---
-
-NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-
-
-def note_to_freq(name: str) -> float:
-    """convert note name to frequency. e.g. 'A4' -> 440, 'C#5' -> 554.37"""
-    # parse note name and octave
-    if len(name) == 2:
-        note, octave = name[0], int(name[1])
-    elif len(name) == 3:
-        note, octave = name[:2], int(name[2])
-    else:
-        raise ValueError(f"invalid note name: {name}")
-
-    # semitones from A4
-    note_idx = NOTE_NAMES.index(note)
-    a4_idx = NOTE_NAMES.index("A")
-    semitones = (octave - 4) * 12 + (note_idx - a4_idx)
-
-    return 440.0 * (2 ** (semitones / 12))
-
-
 # --- tempo and timing ---
 
 
