@@ -4,16 +4,15 @@ monorepo for audio-related python packages.
 
 ## packages
 
-| package | description |
-|---------|-------------|
-| [dac](./packages/digital-audio-claudespace) | programmatic music synthesis via ffmpeg |
-| [plyrfm](./packages/plyrfm) | SDK + CLI for [plyr.fm](https://plyr.fm) |
-| [plyrfm-mcp](./packages/plyrfm-mcp) | MCP server for LLM clients |
+| package | description | install |
+|---------|-------------|---------|
+| [dac](./packages/digital-audio-claudespace) | programmatic music synthesis via ffmpeg | see below |
+| [plyrfm](./packages/plyrfm) | SDK + CLI for [plyr.fm](https://plyr.fm) | `uv add plyrfm` |
+| [plyrfm-mcp](./packages/plyrfm-mcp) | MCP server for LLM clients | `uv add plyrfm-mcp` |
 
-install from git:
+dac (not on PyPI):
 ```bash
 uv add dac@git+https://github.com/zzstoatzz/plyr-python-client#subdirectory=packages/digital-audio-claudespace
-uv add plyrfm@git+https://github.com/zzstoatzz/plyr-python-client#subdirectory=packages/plyrfm
 ```
 
 ## dac (digital audio claudespace)
