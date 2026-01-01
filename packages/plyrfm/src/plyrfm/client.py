@@ -115,7 +115,7 @@ class PlyrClient(_BaseClient):
         )
         response.raise_for_status()
         data = response.json()
-        return [Track.from_dict(t) for t in data.get("tracks", [])]
+        return [Track.model_validate(t) for t in data.get("tracks", [])]
 
     def get_track(self, track_id: int) -> Track:
         """get a single track by ID. no auth required."""
@@ -123,7 +123,7 @@ class PlyrClient(_BaseClient):
             self._url(f"/tracks/{track_id}"),
         )
         response.raise_for_status()
-        return Track.from_dict(response.json())
+        return Track.model_validate(response.json())
 
     # -------------------------------------------------------------------------
     # authenticated operations
@@ -147,7 +147,7 @@ class PlyrClient(_BaseClient):
         )
         response.raise_for_status()
         data = response.json()
-        return [Track.from_dict(t) for t in data.get("tracks", [])]
+        return [Track.model_validate(t) for t in data.get("tracks", [])]
 
     def get_artist_profile(self) -> ArtistProfile:
         """get your artist profile. requires auth."""
@@ -156,7 +156,7 @@ class PlyrClient(_BaseClient):
             headers=self._auth_headers,
         )
         response.raise_for_status()
-        return ArtistProfile.from_dict(response.json())
+        return ArtistProfile.model_validate(response.json())
 
     def update_artist_profile(self, patch: ArtistProfilePatch) -> ArtistProfile:
         """update your artist profile. requires auth."""
@@ -176,7 +176,7 @@ class PlyrClient(_BaseClient):
             json=data,
         )
         self._handle_error_response(response)
-        return ArtistProfile.from_dict(response.json())
+        return ArtistProfile.model_validate(response.json())
 
     def upload(
         self,
@@ -195,11 +195,11 @@ class PlyrClient(_BaseClient):
 
         with open(file, "rb") as f:
             files = {"file": (file.name, f)}
-            data: dict[str, str | list[str]] = {"title": title}
+            data: dict[str, str] = {"title": title}
             if album:
                 data["album"] = album
             if tags:
-                data["tags"] = list(tags)
+                data["tags"] = json.dumps(list(tags))
 
             response = self._client.post(
                 self._url("/tracks/"),
@@ -255,7 +255,7 @@ class PlyrClient(_BaseClient):
             )
 
         self._handle_error_response(response)
-        return Track.from_dict(response.json())
+        return Track.model_validate(response.json())
 
     def _poll_upload(
         self,
@@ -369,7 +369,7 @@ class AsyncPlyrClient(_BaseClient):
         )
         response.raise_for_status()
         data = response.json()
-        return [Track.from_dict(t) for t in data.get("tracks", [])]
+        return [Track.model_validate(t) for t in data.get("tracks", [])]
 
     async def get_track(self, track_id: int) -> Track:
         """get a single track by ID. no auth required."""
@@ -377,7 +377,7 @@ class AsyncPlyrClient(_BaseClient):
             self._url(f"/tracks/{track_id}"),
         )
         response.raise_for_status()
-        return Track.from_dict(response.json())
+        return Track.model_validate(response.json())
 
     # -------------------------------------------------------------------------
     # authenticated operations
@@ -401,7 +401,7 @@ class AsyncPlyrClient(_BaseClient):
         )
         response.raise_for_status()
         data = response.json()
-        return [Track.from_dict(t) for t in data.get("tracks", [])]
+        return [Track.model_validate(t) for t in data.get("tracks", [])]
 
     async def get_artist_profile(self) -> ArtistProfile:
         """get your artist profile. requires auth."""
@@ -410,7 +410,7 @@ class AsyncPlyrClient(_BaseClient):
             headers=self._auth_headers,
         )
         response.raise_for_status()
-        return ArtistProfile.from_dict(response.json())
+        return ArtistProfile.model_validate(response.json())
 
     async def update_artist_profile(self, patch: ArtistProfilePatch) -> ArtistProfile:
         """update your artist profile. requires auth."""
@@ -430,7 +430,7 @@ class AsyncPlyrClient(_BaseClient):
             json=data,
         )
         self._handle_error_response(response)
-        return ArtistProfile.from_dict(response.json())
+        return ArtistProfile.model_validate(response.json())
 
     async def upload(
         self,
@@ -449,11 +449,11 @@ class AsyncPlyrClient(_BaseClient):
 
         with open(file, "rb") as f:
             files = {"file": (file.name, f)}
-            data: dict[str, str | list[str]] = {"title": title}
+            data: dict[str, str] = {"title": title}
             if album:
                 data["album"] = album
             if tags:
-                data["tags"] = list(tags)
+                data["tags"] = json.dumps(list(tags))
 
             response = await self._client.post(
                 self._url("/tracks/"),
@@ -509,7 +509,7 @@ class AsyncPlyrClient(_BaseClient):
             )
 
         self._handle_error_response(response)
-        return Track.from_dict(response.json())
+        return Track.model_validate(response.json())
 
     async def _poll_upload(
         self,
