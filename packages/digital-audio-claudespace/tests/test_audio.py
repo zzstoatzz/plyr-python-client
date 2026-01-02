@@ -13,21 +13,17 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from dac.track import Sine, mix, phase
 
 
-def get_volume(path: Path) -> tuple[float, float]:
-    """get mean and max volume in dB."""
+def get_max_volume(path: Path) -> float:
+    """get max volume in dB."""
     result = subprocess.run(
         ["ffmpeg", "-i", str(path), "-af", "volumedetect", "-f", "null", "-"],
         capture_output=True,
         text=True,
     )
-    output = result.stderr
-    mean = max_vol = None
-    for line in output.split("\n"):
-        if "mean_volume" in line:
-            mean = float(line.split(":")[-1].strip().replace(" dB", ""))
+    for line in result.stderr.split("\n"):
         if "max_volume" in line:
-            max_vol = float(line.split(":")[-1].strip().replace(" dB", ""))
-    return mean, max_vol
+            return float(line.split(":")[-1].strip().replace(" dB", ""))
+    raise ValueError("could not parse max volume")
 
 
 def amp_to_db(amp: float) -> float:
@@ -45,7 +41,7 @@ def test_single_sine():
     s = Sine(440, 2, amplitude=0.3, label="test")
     mix([s], out, duration=2)
 
-    mean, max_vol = get_volume(out)
+    max_vol = get_max_volume(out)
     expected = amp_to_db(0.3)  # -10.5 dB
 
     print(f"  amplitude: 0.3 → expected max: {expected:.1f} dB")
@@ -69,7 +65,7 @@ def test_two_sines():
     s2 = Sine(880, 2, amplitude=0.2, label="b")
     mix([s1, s2], out, duration=2)
 
-    mean, max_vol = get_volume(out)
+    max_vol = get_max_volume(out)
     # two sines at 0.2 can peak at 0.4 when aligned
     expected_max = amp_to_db(0.4)  # -8 dB
 
@@ -93,7 +89,7 @@ def test_fade_out():
     s = Sine(440, 4, amplitude=0.3, label="test").fade_out(1)
     mix([s], out, duration=4)
 
-    mean, max_vol = get_volume(out)
+    max_vol = get_max_volume(out)
     expected = amp_to_db(0.3)
 
     print(f"  sine with fade_out(1) → expected max: {expected:.1f} dB")
@@ -117,7 +113,7 @@ def test_fade_in_and_out():
     s = Sine(440, 4, amplitude=0.3, label="test").fade_in(1).fade_out(1)
     mix([s], out, duration=4)
 
-    mean, max_vol = get_volume(out)
+    max_vol = get_max_volume(out)
     expected = amp_to_db(0.3)
 
     print(f"  sine with fade_in(1) + fade_out(1) → expected max: {expected:.1f} dB")
@@ -141,7 +137,7 @@ def test_phase():
     copies = phase(s, interval=4, duration=10)
     mix(copies, out, duration=10)
 
-    mean, max_vol = get_volume(out)
+    max_vol = get_max_volume(out)
     expected = amp_to_db(0.3)
 
     print(f"  phased sine at 0.3 → expected max: {expected:.1f} dB")
@@ -166,7 +162,7 @@ def test_phase_with_fades():
     copies = phase(s, interval=4, duration=10)
     mix(copies, out, duration=10)
 
-    mean, max_vol = get_volume(out)
+    max_vol = get_max_volume(out)
     expected = amp_to_db(0.3)
 
     print(f"  phased sine with fades at 0.3 → expected max: {expected:.1f} dB")
@@ -197,7 +193,7 @@ def test_continuous_plus_phased():
     all_tracks = [drone, *mel_copies]
     mix(all_tracks, out, duration=10)
 
-    mean, max_vol = get_volume(out)
+    max_vol = get_max_volume(out)
     # when both play, max is 0.4 = -8 dB
     expected_max = amp_to_db(0.4)
 
