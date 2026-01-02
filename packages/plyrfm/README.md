@@ -2,11 +2,23 @@
 
 python sdk for [plyr.fm](https://plyr.fm) - music on atproto.
 
+## quickstart
+
+requires `uv`. lists recent tracks:
+
+```bash
+uv run --with plyrfm python -c "
+from plyrfm import PlyrClient
+
+client = PlyrClient()
+for t in client.list_tracks(limit=5):
+    print(f'{t.id}: {t.title} by {t.artist}')
+"
+```
+
 ## install
 
 ```bash
-pip install plyrfm
-# or
 uv add plyrfm
 ```
 

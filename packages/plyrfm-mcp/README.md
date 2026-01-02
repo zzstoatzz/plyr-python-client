@@ -2,25 +2,24 @@
 
 MCP server for [plyr.fm](https://plyr.fm) - expose your music library to LLM clients.
 
-## install
+## quickstart
 
-```bash
-pip install plyrfm-mcp
-# or
-uv add plyrfm-mcp
-```
-
-## usage with claude code
+use the hosted server with claude code:
 
 ```bash
 claude mcp add-json plyr-fm '{"type": "http", "url": "https://plyrfm.fastmcp.app/mcp", "headers": {"x-plyr-token": "YOUR_TOKEN"}}'
 ```
 
-or run locally:
+or run locally via uvx:
 
 ```bash
-export PLYR_TOKEN="your_token"
-plyrfm-mcp
+PLYR_TOKEN="your_token" uvx plyrfm-mcp
+```
+
+## install
+
+```bash
+uv add plyrfm-mcp
 ```
 
 ## tools
@@ -29,7 +28,6 @@ plyrfm-mcp
 - `get_track` - get a single track by ID
 - `my_tracks` - list your tracks (supports `_filter`)
 - `delete_track` - delete a track
-- `whoami` - get current user info
 
 ## filtering
 

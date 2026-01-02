@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 
-from .track import Sample, Sine, Tempo, Track, note_to_freq
+from ._internal.notes import note_to_freq
+from .track import Sample, Sine, Tempo, Track
 
 # --- time handling ---
 

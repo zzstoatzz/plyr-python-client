@@ -2,13 +2,28 @@
 
 programmatic audio synthesis via ffmpeg.
 
-## installation
+## quickstart
+
+requires `uv` and `ffmpeg`. creates a 4-second tone:
 
 ```bash
-uv add digital-audio-claudespace
+uv run --with 'digital-audio-claudespace@git+https://github.com/zzstoatzz/plyr-python-client#subdirectory=packages/digital-audio-claudespace' python -c "
+from dac import Sine, mix, note_to_freq
+from pathlib import Path
+
+tone = Sine(note_to_freq('A4'), 4, amplitude=0.3)
+tone.fade_in(0.5).fade_out(1)
+
+mix([tone], Path('/tmp/tone.wav'), duration=4)
+print('created /tmp/tone.wav')
+"
 ```
 
-requires `ffmpeg` on your PATH.
+## install
+
+```bash
+uv add digital-audio-claudespace@git+https://github.com/zzstoatzz/plyr-python-client#subdirectory=packages/digital-audio-claudespace
+```
 
 ## usage
 
@@ -62,4 +77,3 @@ track.speed(0.8)            # tempo (0.5-2.0)
 track.pitch(2)              # semitones
 track.pan(-0.5)             # stereo (-1 to 1)
 ```
-
