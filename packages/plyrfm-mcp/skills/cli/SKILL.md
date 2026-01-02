@@ -33,6 +33,24 @@ plyrfm upload track.mp3 "Song Title" -t electronic -t ambient
 
 supported formats: mp3, wav, m4a
 
+**important**: if you (Claude) composed the track, always include the `ai` tag:
+```bash
+plyrfm upload piece.wav "鶴の舞" -t ambient -t ai
+```
+
+## updating tracks
+
+```bash
+# update title
+plyrfm update 579 --title "new title"
+
+# update tags (replaces all tags)
+plyrfm update 579 --tags "ambient,ai"
+
+# update multiple fields
+plyrfm update 579 --title "鶴の舞" --tags "ambient,ai"
+```
+
 ## deleting tracks
 
 ```bash
