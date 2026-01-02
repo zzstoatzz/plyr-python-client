@@ -1,3 +1,8 @@
+---
+name: cli
+description: Use this when you need to perform mutations on plyr.fm - uploading, deleting, liking tracks. The MCP server is read-only - use this skill when you need to trigger uploads, delete tracks, or modify likes.
+---
+
 # plyrfm CLI mutations
 
 the MCP server (`plyr-fm`) is **read-only** - use it to browse tracks, search, view liked tracks.

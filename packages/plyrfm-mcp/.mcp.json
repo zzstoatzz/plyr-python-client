@@ -1,0 +1,6 @@
+{
+  "plyr-fm": {
+    "command": "uvx",
+    "args": ["plyrfm-mcp"]
+  }
+}
