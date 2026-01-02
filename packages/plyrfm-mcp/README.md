@@ -24,6 +24,8 @@ uv add plyrfm-mcp
 
 ## tools
 
+this server is **read-only** by design. use the `plyrfm` CLI for mutations (upload, delete, like, unlike).
+
 **public (no auth):**
 - `list_tracks` - list public tracks
 - `get_track` - get a single track by ID
@@ -35,9 +37,6 @@ uv add plyrfm-mcp
 **authenticated:**
 - `my_tracks` - list your tracks
 - `liked_tracks` - list your liked tracks
-- `like_track` - like a track
-- `unlike_track` - unlike a track
-- `delete_track` - delete a track
 
 tools that return lists support `_filter` for jmespath filtering.
 

@@ -136,14 +136,6 @@ async def my_tracks(limit: int = 20) -> list[Track]:
 
 
 @mcp.tool
-async def delete_track(track_id: int) -> dict[str, int]:
-    """delete a track. requires auth and ownership."""
-    async with get_plyr_client(require_auth=True) as client:
-        await client.delete(track_id)
-        return {"deleted": track_id}
-
-
-@mcp.tool
 async def search(
     query: str, type: str | None = None, limit: int = 20
 ) -> SearchResponse:
@@ -193,22 +185,6 @@ async def liked_tracks(limit: int = 20) -> list[Track]:
     """list your liked tracks. requires auth."""
     async with get_plyr_client(require_auth=True) as client:
         return await client.liked_tracks(limit=limit)
-
-
-@mcp.tool
-async def like_track(track_id: int) -> dict[str, int]:
-    """like a track. requires auth."""
-    async with get_plyr_client(require_auth=True) as client:
-        await client.like(track_id)
-        return {"liked": track_id}
-
-
-@mcp.tool
-async def unlike_track(track_id: int) -> dict[str, int]:
-    """unlike a track. requires auth."""
-    async with get_plyr_client(require_auth=True) as client:
-        await client.unlike(track_id)
-        return {"unliked": track_id}
 
 
 # -----------------------------------------------------------------------------
