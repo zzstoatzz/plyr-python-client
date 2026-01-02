@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -90,3 +91,92 @@ class UploadResult(BaseModel):
 
     track_id: int
     title: str
+
+
+# --- search types ---
+
+
+class TrackSearchResult(BaseModel):
+    """track search result."""
+
+    type: Literal["track"] = "track"
+    id: int
+    title: str
+    artist_handle: str
+    artist_display_name: str
+    image_url: str | None = None
+    relevance: float
+
+
+class ArtistSearchResult(BaseModel):
+    """artist search result."""
+
+    type: Literal["artist"] = "artist"
+    did: str
+    handle: str
+    display_name: str
+    avatar_url: str | None = None
+    relevance: float
+
+
+class AlbumSearchResult(BaseModel):
+    """album search result."""
+
+    type: Literal["album"] = "album"
+    id: str
+    title: str
+    slug: str
+    artist_handle: str
+    artist_display_name: str
+    image_url: str | None = None
+    relevance: float
+
+
+class TagSearchResult(BaseModel):
+    """tag search result."""
+
+    type: Literal["tag"] = "tag"
+    id: int
+    name: str
+    track_count: int
+    relevance: float
+
+
+class PlaylistSearchResult(BaseModel):
+    """playlist search result."""
+
+    type: Literal["playlist"] = "playlist"
+    id: str
+    name: str
+    owner_handle: str
+    owner_display_name: str
+    image_url: str | None = None
+    track_count: int
+    relevance: float
+
+
+SearchResult = Annotated[
+    TrackSearchResult
+    | ArtistSearchResult
+    | AlbumSearchResult
+    | TagSearchResult
+    | PlaylistSearchResult,
+    Field(discriminator="type"),
+]
+
+
+class SearchResponse(BaseModel):
+    """unified search response."""
+
+    results: list[SearchResult]
+    counts: dict[str, int]
+
+
+# --- tag types ---
+
+
+class Tag(BaseModel):
+    """tag with track count."""
+
+    name: str
+    track_count: int

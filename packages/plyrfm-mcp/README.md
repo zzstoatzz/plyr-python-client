@@ -24,10 +24,22 @@ uv add plyrfm-mcp
 
 ## tools
 
-- `list_tracks` - list public tracks (supports `_filter` for jmespath filtering)
+**public (no auth):**
+- `list_tracks` - list public tracks
 - `get_track` - get a single track by ID
-- `my_tracks` - list your tracks (supports `_filter`)
+- `search` - search tracks, artists, albums, tags
+- `top_tracks` - get top tracks by likes
+- `list_tags` - list all tags with track counts
+- `tracks_by_tag` - get tracks with a specific tag
+
+**authenticated:**
+- `my_tracks` - list your tracks
+- `liked_tracks` - list your liked tracks
+- `like_track` - like a track
+- `unlike_track` - unlike a track
 - `delete_track` - delete a track
+
+tools that return lists support `_filter` for jmespath filtering.
 
 ## filtering
 

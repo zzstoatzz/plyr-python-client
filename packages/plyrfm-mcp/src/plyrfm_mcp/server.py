@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastmcp import FastMCP
 from plyrfm import Track
+from plyrfm._internal.types import SearchResponse, Tag
 
 from plyrfm_mcp.client import get_plyr_client
 from plyrfm_mcp.filterable import filterable
@@ -140,6 +141,74 @@ async def delete_track(track_id: int) -> dict[str, int]:
     async with get_plyr_client(require_auth=True) as client:
         await client.delete(track_id)
         return {"deleted": track_id}
+
+
+@mcp.tool
+async def search(
+    query: str, type: str | None = None, limit: int = 20
+) -> SearchResponse:
+    """search tracks, artists, albums, and tags. no auth required.
+
+    args:
+        query: search query (2-100 chars)
+        type: filter by type (tracks, artists, albums, tags - comma-separated)
+        limit: max results per type (1-50)
+    """
+    async with get_plyr_client() as client:
+        return await client.search(query, type=type, limit=limit)
+
+
+@mcp.tool
+@filterable
+async def top_tracks(limit: int = 10) -> list[Track]:
+    """get top tracks by like count. no auth required."""
+    async with get_plyr_client() as client:
+        return await client.top_tracks(limit=limit)
+
+
+@mcp.tool
+@filterable
+async def list_tags(q: str | None = None, limit: int = 20) -> list[Tag]:
+    """list tags with track counts. no auth required.
+
+    args:
+        q: optional prefix search query
+        limit: max results (1-100)
+    """
+    async with get_plyr_client() as client:
+        return await client.list_tags(q=q, limit=limit)
+
+
+@mcp.tool
+@filterable
+async def tracks_by_tag(tag: str, limit: int = 50) -> list[Track]:
+    """get tracks with a specific tag. no auth required."""
+    async with get_plyr_client() as client:
+        return await client.tracks_by_tag(tag, limit=limit)
+
+
+@mcp.tool
+@filterable
+async def liked_tracks(limit: int = 20) -> list[Track]:
+    """list your liked tracks. requires auth."""
+    async with get_plyr_client(require_auth=True) as client:
+        return await client.liked_tracks(limit=limit)
+
+
+@mcp.tool
+async def like_track(track_id: int) -> dict[str, int]:
+    """like a track. requires auth."""
+    async with get_plyr_client(require_auth=True) as client:
+        await client.like(track_id)
+        return {"liked": track_id}
+
+
+@mcp.tool
+async def unlike_track(track_id: int) -> dict[str, int]:
+    """unlike a track. requires auth."""
+    async with get_plyr_client(require_auth=True) as client:
+        await client.unlike(track_id)
+        return {"unliked": track_id}
 
 
 # -----------------------------------------------------------------------------

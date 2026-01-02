@@ -65,6 +65,111 @@ def cmd_list(limit: int = 20) -> None:
     console.print(table)
 
 
+def cmd_search(query: str, limit: int = 20) -> None:
+    """search tracks, artists, albums, tags (no auth required)."""
+    client = _get_client()
+
+    with console.status("searching..."):
+        results = client.search(query, limit=limit)
+
+    if not results.results:
+        console.print("no results found")
+        return
+
+    console.print(f"[dim]found: {results.counts}[/]")
+
+    for result in results.results:
+        if result.type == "track":
+            console.print(
+                f"[cyan]track[/] {result.id}: {result.title} by {result.artist_display_name}"
+            )
+        elif result.type == "artist":
+            console.print(f"[green]artist[/] @{result.handle}: {result.display_name}")
+        elif result.type == "album":
+            console.print(
+                f"[yellow]album[/] {result.title} by {result.artist_display_name}"
+            )
+        elif result.type == "tag":
+            console.print(
+                f"[magenta]tag[/] #{result.name} ({result.track_count} tracks)"
+            )
+        elif result.type == "playlist":
+            console.print(
+                f"[blue]playlist[/] {result.name} by {result.owner_display_name}"
+            )
+
+
+def cmd_top(limit: int = 10) -> None:
+    """list top tracks by likes (no auth required)."""
+    client = _get_client()
+
+    with console.status("fetching top tracks..."):
+        tracks = client.top_tracks(limit=limit)
+
+    if not tracks:
+        console.print("no tracks found")
+        return
+
+    table = Table(title="top tracks")
+    table.add_column("#", style="dim")
+    table.add_column("ID", style="cyan")
+    table.add_column("title")
+    table.add_column("artist")
+    table.add_column("likes", justify="right")
+
+    for i, track in enumerate(tracks, 1):
+        table.add_row(
+            str(i),
+            str(track.id),
+            track.title,
+            track.artist,
+            str(track.like_count),
+        )
+
+    console.print(table)
+
+
+def cmd_tags(tag: str | None = None, limit: int = 20) -> None:
+    """list tags or tracks with a tag (no auth required)."""
+    client = _get_client()
+
+    if tag:
+        # show tracks with this tag
+        with console.status(f"fetching tracks with tag '{tag}'..."):
+            tracks = client.tracks_by_tag(tag, limit=limit)
+
+        if not tracks:
+            console.print(f"no tracks found with tag '{tag}'")
+            return
+
+        table = Table(title=f"tracks tagged #{tag}")
+        table.add_column("ID", style="cyan")
+        table.add_column("title")
+        table.add_column("artist")
+
+        for track in tracks:
+            table.add_row(str(track.id), track.title, track.artist)
+
+        console.print(table)
+    else:
+        # list all tags
+        with console.status("fetching tags..."):
+            tags = client.list_tags(limit=limit)
+
+        if not tags:
+            console.print("no tags found")
+            return
+
+        table = Table(title="tags")
+        table.add_column("tag", style="magenta")
+        table.add_column("tracks", justify="right")
+
+        for t in tags:
+            table.add_row(f"#{t.name}", str(t.track_count))
+
+        console.print(table)
+
+
 def cmd_my_tracks(limit: int = 20) -> None:
     """list your own tracks (requires auth)."""
     client = _get_client(require_auth=True)
@@ -97,6 +202,65 @@ def cmd_my_tracks(limit: int = 20) -> None:
         )
 
     console.print(table)
+
+
+def cmd_liked(limit: int = 20) -> None:
+    """list tracks you've liked (requires auth)."""
+    client = _get_client(require_auth=True)
+
+    with console.status("fetching liked tracks..."):
+        try:
+            tracks = client.liked_tracks(limit=limit)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401:
+                _error("invalid or expired token")
+            raise
+
+    if not tracks:
+        console.print("no liked tracks")
+        return
+
+    table = Table(title="liked tracks")
+    table.add_column("ID", style="cyan")
+    table.add_column("title")
+    table.add_column("artist")
+
+    for track in tracks:
+        table.add_row(str(track.id), track.title, track.artist)
+
+    console.print(table)
+
+
+def cmd_like(track_id: int) -> None:
+    """like a track (requires auth)."""
+    client = _get_client(require_auth=True)
+
+    try:
+        client.like(track_id)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            _error(f"track {track_id} not found")
+        if e.response.status_code == 401:
+            _error("invalid or expired token")
+        raise
+
+    console.print(f"[green]liked[/] track {track_id}")
+
+
+def cmd_unlike(track_id: int) -> None:
+    """unlike a track (requires auth)."""
+    client = _get_client(require_auth=True)
+
+    try:
+        client.unlike(track_id)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            _error(f"track {track_id} not found")
+        if e.response.status_code == 401:
+            _error("invalid or expired token")
+        raise
+
+    console.print(f"[dim]unliked[/] track {track_id}")
 
 
 def cmd_upload(
@@ -244,9 +408,15 @@ USAGE = """\
 
 [bold]public commands (no auth):[/]
     list [--limit N]              list all tracks
+    search <query> [--limit N]    search tracks, artists, albums, tags
+    top [--limit N]               list top tracks by likes
+    tags [TAG] [--limit N]        list tags, or tracks with a tag
 
 [bold]authenticated commands:[/]
     my-tracks [--limit N]         list your tracks
+    liked [--limit N]             list your liked tracks
+    like <id>                     like a track
+    unlike <id>                   unlike a track
     upload <file> <title> [--album NAME] [-t TAG ...]
                                   upload a track
     download <id> [--output FILE] download a track
@@ -261,13 +431,13 @@ USAGE = """\
     2. export PLYR_TOKEN="your_token"
 
 [bold]examples:[/]
-    plyrfm list                                  # no auth needed
-    plyrfm my-tracks                             # requires auth
-    plyrfm upload track.mp3 "My Song"            # requires auth
-    plyrfm upload track.mp3 "My Song" -t ai      # with tag
-    plyrfm upload track.mp3 "My Song" -t ai -t podcast  # multiple tags
-    plyrfm download 42 -o song.mp3               # requires auth
-    plyrfm update-profile --bio "music maker"    # update bio
+    plyrfm search ambient                        # search for 'ambient'
+    plyrfm top                                   # top tracks by likes
+    plyrfm tags                                  # list all tags
+    plyrfm tags electronic                       # tracks tagged 'electronic'
+    plyrfm liked                                 # your liked tracks
+    plyrfm like 42                               # like track 42
+    plyrfm upload track.mp3 "My Song" -t ai      # upload with tag
 """
 
 
@@ -289,6 +459,34 @@ def main() -> None:
                 limit = int(args[idx + 1])
         cmd_list(limit=limit)
 
+    elif cmd == "search":
+        if len(args) < 2:
+            _error("usage: plyrfm search <query> [--limit N]")
+        query = args[1]
+        limit = 20
+        if "--limit" in args:
+            idx = args.index("--limit")
+            if idx + 1 < len(args):
+                limit = int(args[idx + 1])
+        cmd_search(query, limit=limit)
+
+    elif cmd == "top":
+        limit = 10
+        if "--limit" in args:
+            idx = args.index("--limit")
+            if idx + 1 < len(args):
+                limit = int(args[idx + 1])
+        cmd_top(limit=limit)
+
+    elif cmd == "tags":
+        tag = args[1] if len(args) > 1 and not args[1].startswith("-") else None
+        limit = 20
+        if "--limit" in args:
+            idx = args.index("--limit")
+            if idx + 1 < len(args):
+                limit = int(args[idx + 1])
+        cmd_tags(tag=tag, limit=limit)
+
     elif cmd == "my-tracks":
         limit = 20
         if "--limit" in args:
@@ -296,6 +494,26 @@ def main() -> None:
             if idx + 1 < len(args):
                 limit = int(args[idx + 1])
         cmd_my_tracks(limit=limit)
+
+    elif cmd == "liked":
+        limit = 20
+        if "--limit" in args:
+            idx = args.index("--limit")
+            if idx + 1 < len(args):
+                limit = int(args[idx + 1])
+        cmd_liked(limit=limit)
+
+    elif cmd == "like":
+        if len(args) < 2:
+            _error("usage: plyrfm like <id>")
+        track_id = int(args[1])
+        cmd_like(track_id)
+
+    elif cmd == "unlike":
+        if len(args) < 2:
+            _error("usage: plyrfm unlike <id>")
+        track_id = int(args[1])
+        cmd_unlike(track_id)
 
     elif cmd == "upload":
         if len(args) < 3:

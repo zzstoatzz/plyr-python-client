@@ -12,6 +12,8 @@ from plyrfm._internal.config import Settings, get_settings
 from plyrfm._internal.types import (
     ArtistProfile,
     ArtistProfilePatch,
+    SearchResponse,
+    Tag,
     Track,
     TrackPatch,
     UploadResult,
@@ -125,6 +127,57 @@ class PlyrClient(_BaseClient):
         response.raise_for_status()
         return Track.model_validate(response.json())
 
+    def search(
+        self,
+        query: str,
+        *,
+        type: str | None = None,
+        limit: int = 20,
+    ) -> SearchResponse:
+        """search tracks, artists, albums, and tags. no auth required.
+
+        args:
+            query: search query (2-100 chars)
+            type: filter by type (tracks, artists, albums, tags - comma-separated)
+            limit: max results per type (1-50)
+        """
+        params: dict[str, str | int] = {"q": query, "limit": limit}
+        if type:
+            params["type"] = type
+        response = self._client.get(self._url("/search/"), params=params)
+        response.raise_for_status()
+        return SearchResponse.model_validate(response.json())
+
+    def top_tracks(self, *, limit: int = 10) -> list[Track]:
+        """get top tracks by like count. no auth required."""
+        response = self._client.get(
+            self._url("/tracks/top"),
+            params={"limit": limit},
+        )
+        response.raise_for_status()
+        return [Track.model_validate(t) for t in response.json()]
+
+    def list_tags(self, *, q: str | None = None, limit: int = 20) -> list[Tag]:
+        """list tags with track counts. no auth required.
+
+        args:
+            q: optional prefix search query
+            limit: max results (1-100)
+        """
+        params: dict[str, str | int] = {"limit": limit}
+        if q:
+            params["q"] = q
+        response = self._client.get(self._url("/tracks/tags"), params=params)
+        response.raise_for_status()
+        return [Tag.model_validate(t) for t in response.json()]
+
+    def tracks_by_tag(self, tag: str, *, limit: int = 50) -> list[Track]:
+        """get tracks with a specific tag. no auth required."""
+        response = self._client.get(self._url(f"/tracks/tags/{tag}"))
+        response.raise_for_status()
+        data = response.json()
+        return [Track.model_validate(t) for t in data.get("tracks", [])]
+
     # -------------------------------------------------------------------------
     # authenticated operations
     # -------------------------------------------------------------------------
@@ -148,6 +201,33 @@ class PlyrClient(_BaseClient):
         response.raise_for_status()
         data = response.json()
         return [Track.model_validate(t) for t in data.get("tracks", [])]
+
+    def liked_tracks(self, *, limit: int = 50) -> list[Track]:
+        """list tracks you've liked. requires auth."""
+        response = self._client.get(
+            self._url("/tracks/liked"),
+            headers=self._auth_headers,
+            params={"limit": limit},
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [Track.model_validate(t) for t in data.get("tracks", [])]
+
+    def like(self, track_id: int) -> None:
+        """like a track. requires auth."""
+        response = self._client.post(
+            self._url(f"/tracks/{track_id}/like"),
+            headers=self._auth_headers,
+        )
+        self._handle_error_response(response)
+
+    def unlike(self, track_id: int) -> None:
+        """unlike a track. requires auth."""
+        response = self._client.delete(
+            self._url(f"/tracks/{track_id}/like"),
+            headers=self._auth_headers,
+        )
+        self._handle_error_response(response)
 
     def get_artist_profile(self) -> ArtistProfile:
         """get your artist profile. requires auth."""
@@ -379,6 +459,57 @@ class AsyncPlyrClient(_BaseClient):
         response.raise_for_status()
         return Track.model_validate(response.json())
 
+    async def search(
+        self,
+        query: str,
+        *,
+        type: str | None = None,
+        limit: int = 20,
+    ) -> SearchResponse:
+        """search tracks, artists, albums, and tags. no auth required.
+
+        args:
+            query: search query (2-100 chars)
+            type: filter by type (tracks, artists, albums, tags - comma-separated)
+            limit: max results per type (1-50)
+        """
+        params: dict[str, str | int] = {"q": query, "limit": limit}
+        if type:
+            params["type"] = type
+        response = await self._client.get(self._url("/search/"), params=params)
+        response.raise_for_status()
+        return SearchResponse.model_validate(response.json())
+
+    async def top_tracks(self, *, limit: int = 10) -> list[Track]:
+        """get top tracks by like count. no auth required."""
+        response = await self._client.get(
+            self._url("/tracks/top"),
+            params={"limit": limit},
+        )
+        response.raise_for_status()
+        return [Track.model_validate(t) for t in response.json()]
+
+    async def list_tags(self, *, q: str | None = None, limit: int = 20) -> list[Tag]:
+        """list tags with track counts. no auth required.
+
+        args:
+            q: optional prefix search query
+            limit: max results (1-100)
+        """
+        params: dict[str, str | int] = {"limit": limit}
+        if q:
+            params["q"] = q
+        response = await self._client.get(self._url("/tracks/tags"), params=params)
+        response.raise_for_status()
+        return [Tag.model_validate(t) for t in response.json()]
+
+    async def tracks_by_tag(self, tag: str, *, limit: int = 50) -> list[Track]:
+        """get tracks with a specific tag. no auth required."""
+        response = await self._client.get(self._url(f"/tracks/tags/{tag}"))
+        response.raise_for_status()
+        data = response.json()
+        return [Track.model_validate(t) for t in data.get("tracks", [])]
+
     # -------------------------------------------------------------------------
     # authenticated operations
     # -------------------------------------------------------------------------
@@ -402,6 +533,33 @@ class AsyncPlyrClient(_BaseClient):
         response.raise_for_status()
         data = response.json()
         return [Track.model_validate(t) for t in data.get("tracks", [])]
+
+    async def liked_tracks(self, *, limit: int = 50) -> list[Track]:
+        """list tracks you've liked. requires auth."""
+        response = await self._client.get(
+            self._url("/tracks/liked"),
+            headers=self._auth_headers,
+            params={"limit": limit},
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [Track.model_validate(t) for t in data.get("tracks", [])]
+
+    async def like(self, track_id: int) -> None:
+        """like a track. requires auth."""
+        response = await self._client.post(
+            self._url(f"/tracks/{track_id}/like"),
+            headers=self._auth_headers,
+        )
+        self._handle_error_response(response)
+
+    async def unlike(self, track_id: int) -> None:
+        """unlike a track. requires auth."""
+        response = await self._client.delete(
+            self._url(f"/tracks/{track_id}/like"),
+            headers=self._auth_headers,
+        )
+        self._handle_error_response(response)
 
     async def get_artist_profile(self) -> ArtistProfile:
         """get your artist profile. requires auth."""
