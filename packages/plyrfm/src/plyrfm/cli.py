@@ -9,7 +9,7 @@ import httpx
 from rich.console import Console
 from rich.table import Table
 
-from plyrfm._internal.types import ArtistProfilePatch
+from plyrfm._internal.types import ArtistProfilePatch, TrackPatch
 from plyrfm.client import PlyrClient
 
 console = Console()
@@ -338,6 +338,33 @@ def cmd_delete(track_id: int, yes: bool = False) -> None:
     console.print(f"[green]deleted:[/] {track.title}")
 
 
+def cmd_update(
+    track_id: int,
+    title: str | None = None,
+    album: str | None = None,
+    tags: list[str] | None = None,
+) -> None:
+    """update track metadata (requires auth)."""
+    client = _get_client(require_auth=True)
+
+    patch = TrackPatch(title=title, album=album, tags=tags)
+
+    try:
+        track = client.update_track(track_id, patch)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            _error(f"track {track_id} not found")
+        if e.response.status_code == 401:
+            _error("invalid or expired token")
+        if e.response.status_code == 403:
+            _error("you don't own this track")
+        raise
+
+    console.print(f"[green]updated:[/] {track.title}")
+    if track.tags:
+        console.print(f"[dim]tags:[/] {', '.join(track.tags)}")
+
+
 def cmd_me() -> None:
     """show current user (requires auth)."""
     client = _get_client(require_auth=True)
@@ -419,6 +446,8 @@ USAGE = """\
     unlike <id>                   unlike a track
     upload <file> <title> [--album NAME] [-t TAG ...]
                                   upload a track
+    update <id> [--title TEXT] [--album NAME] [--tags TAG,TAG,...]
+                                  update track metadata
     download <id> [--output FILE] download a track
     delete <id> [--yes]           delete a track
     me                            show current user
@@ -535,6 +564,29 @@ def main() -> None:
             else:
                 i += 1
         cmd_upload(file, title, album, tags if tags else None)
+
+    elif cmd == "update":
+        if len(args) < 2:
+            _error(
+                "usage: plyrfm update <id> [--title TEXT] [--album NAME] [--tags TAG,TAG,...]"
+            )
+        track_id = int(args[1])
+        title = None
+        album = None
+        tags = None
+        if "--title" in args:
+            idx = args.index("--title")
+            if idx + 1 < len(args):
+                title = args[idx + 1]
+        if "--album" in args:
+            idx = args.index("--album")
+            if idx + 1 < len(args):
+                album = args[idx + 1]
+        if "--tags" in args:
+            idx = args.index("--tags")
+            if idx + 1 < len(args):
+                tags = [t.strip() for t in args[idx + 1].split(",")]
+        cmd_update(track_id, title=title, album=album, tags=tags)
 
     elif cmd == "download":
         if len(args) < 2:
