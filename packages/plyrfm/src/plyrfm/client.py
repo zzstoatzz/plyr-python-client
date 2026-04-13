@@ -427,9 +427,7 @@ class TagsNamespace(_SyncNamespace):
         params: dict[str, str | int] = {"limit": limit}
         if q:
             params["q"] = q
-        response = self._api._client.get(
-            self._api._url("/tracks/tags"), params=params
-        )
+        response = self._api._client.get(self._api._url("/tracks/tags"), params=params)
         response.raise_for_status()
         return [Tag.model_validate(t) for t in response.json()]
 

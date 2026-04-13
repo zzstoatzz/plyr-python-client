@@ -19,9 +19,7 @@ TrackUri: TypeAlias = Annotated[
 ]
 TrackRef: TypeAlias = TrackId | TrackUri
 
-PlaylistId: TypeAlias = Annotated[
-    str, Field(description="plyr.fm playlist ID (UUID)")
-]
+PlaylistId: TypeAlias = Annotated[str, Field(description="plyr.fm playlist ID (UUID)")]
 
 ArtistDid: TypeAlias = Annotated[
     str, Field(description="ATProto DID (did:plc:... or did:web:...)")

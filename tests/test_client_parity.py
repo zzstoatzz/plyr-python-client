@@ -43,11 +43,11 @@ def test_clients_have_same_methods():
 
 def test_clients_have_same_namespaces():
     """sync and async clients should expose the same namespace attributes."""
-    sync_ns = {name for name in ("tracks", "playlists", "tags", "artists", "discover")}
+    sync_ns = {"tracks", "playlists", "tags", "artists", "discover"}
     for name in sync_ns:
-        assert hasattr(PlyrClient, name) or name in PlyrClient.__init__.__code__.co_names, (
-            f"PlyrClient missing namespace: {name}"
-        )
+        assert (
+            hasattr(PlyrClient, name) or name in PlyrClient.__init__.__code__.co_names
+        ), f"PlyrClient missing namespace: {name}"
 
 
 # --- namespace parity ---

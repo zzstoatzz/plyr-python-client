@@ -110,7 +110,9 @@ def tracks_get(ref: str) -> None:
         _handle_http_error(e, "track")
 
     console.print(f"[bold]{track.title}[/] by {track.artist}")
-    console.print(f"[dim]id:[/] {track.id}  [dim]plays:[/] {track.play_count}  [dim]likes:[/] {track.like_count}")
+    console.print(
+        f"[dim]id:[/] {track.id}  [dim]plays:[/] {track.play_count}  [dim]likes:[/] {track.like_count}"
+    )
     if track.album:
         console.print(f"[dim]album:[/] {track.album.title}")
     if track.tags:
@@ -124,8 +126,13 @@ def tracks_upload(
     file: str,
     title: str,
     *,
-    album: Annotated[str | None, cyclopts.Parameter("--album", help="album name")] = None,
-    tag: Annotated[list[str] | None, cyclopts.Parameter("--tag", alias="-t", help="tag (repeatable)")] = None,
+    album: Annotated[
+        str | None, cyclopts.Parameter("--album", help="album name")
+    ] = None,
+    tag: Annotated[
+        list[str] | None,
+        cyclopts.Parameter("--tag", alias="-t", help="tag (repeatable)"),
+    ] = None,
 ) -> None:
     """upload a track."""
     client = _get_client(require_auth=True)
@@ -151,7 +158,9 @@ def tracks_update(
     *,
     title: Annotated[str | None, cyclopts.Parameter("--title")] = None,
     album: Annotated[str | None, cyclopts.Parameter("--album")] = None,
-    tags: Annotated[str | None, cyclopts.Parameter("--tags", help="comma-separated tags")] = None,
+    tags: Annotated[
+        str | None, cyclopts.Parameter("--tags", help="comma-separated tags")
+    ] = None,
 ) -> None:
     """update track metadata."""
     client = _get_client(require_auth=True)
@@ -173,7 +182,9 @@ def tracks_update(
 def tracks_delete(
     ref: str,
     *,
-    yes: Annotated[bool, cyclopts.Parameter("--yes", alias="-y", help="skip confirmation")] = False,
+    yes: Annotated[
+        bool, cyclopts.Parameter("--yes", alias="-y", help="skip confirmation")
+    ] = False,
 ) -> None:
     """delete a track."""
     client = _get_client(require_auth=True)
@@ -202,7 +213,9 @@ def tracks_delete(
 def tracks_download(
     ref: str,
     *,
-    output: Annotated[str | None, cyclopts.Parameter("--output", alias="-o", help="output path")] = None,
+    output: Annotated[
+        str | None, cyclopts.Parameter("--output", alias="-o", help="output path")
+    ] = None,
 ) -> None:
     """download a track."""
     client = _get_client(require_auth=True)
@@ -334,7 +347,9 @@ def playlists_list() -> None:
     table.add_column("profile", justify="center")
 
     for p in playlists:
-        table.add_row(p.id, p.name, str(p.track_count), "yes" if p.show_on_profile else "-")
+        table.add_row(
+            p.id, p.name, str(p.track_count), "yes" if p.show_on_profile else "-"
+        )
 
     console.print(table)
 
@@ -395,7 +410,9 @@ def playlists_add_track(playlist_id: str, track: str) -> None:
         except httpx.HTTPStatusError as e:
             _handle_http_error(e, "playlist or track")
 
-    console.print(f"[green]added[/] track to {playlist.name} ({playlist.track_count} tracks)")
+    console.print(
+        f"[green]added[/] track to {playlist.name} ({playlist.track_count} tracks)"
+    )
 
 
 @playlists_app.command(name="remove-track")
@@ -412,7 +429,9 @@ def playlists_remove_track(playlist_id: str, track: str) -> None:
         except httpx.HTTPStatusError as e:
             _handle_http_error(e, "playlist or track")
 
-    console.print(f"[green]removed[/] track from {playlist.name} ({playlist.track_count} tracks)")
+    console.print(
+        f"[green]removed[/] track from {playlist.name} ({playlist.track_count} tracks)"
+    )
 
 
 @playlists_app.command(name="update")
@@ -420,13 +439,17 @@ def playlists_update(
     playlist_id: str,
     *,
     name: Annotated[str | None, cyclopts.Parameter("--name")] = None,
-    show_on_profile: Annotated[bool | None, cyclopts.Parameter("--show-on-profile")] = None,
+    show_on_profile: Annotated[
+        bool | None, cyclopts.Parameter("--show-on-profile")
+    ] = None,
 ) -> None:
     """update a playlist."""
     client = _get_client(require_auth=True)
 
     try:
-        playlist = client.playlists.update(playlist_id, name=name, show_on_profile=show_on_profile)
+        playlist = client.playlists.update(
+            playlist_id, name=name, show_on_profile=show_on_profile
+        )
     except httpx.HTTPStatusError as e:
         _handle_http_error(e, "playlist")
 
@@ -437,7 +460,9 @@ def playlists_update(
 def playlists_delete(
     playlist_id: str,
     *,
-    yes: Annotated[bool, cyclopts.Parameter("--yes", alias="-y", help="skip confirmation")] = False,
+    yes: Annotated[
+        bool, cyclopts.Parameter("--yes", alias="-y", help="skip confirmation")
+    ] = False,
 ) -> None:
     """delete a playlist."""
     client = _get_client(require_auth=True)
@@ -448,7 +473,9 @@ def playlists_delete(
         except httpx.HTTPStatusError as e:
             _handle_http_error(e, "playlist")
 
-        console.print(f"delete '{playlist.name}' ({playlist.track_count} tracks)? [y/N] ", end="")
+        console.print(
+            f"delete '{playlist.name}' ({playlist.track_count} tracks)? [y/N] ", end=""
+        )
         if input().lower() != "y":
             console.print("cancelled")
             return
@@ -550,7 +577,9 @@ def artists_update(
 ) -> None:
     """update your artist profile."""
     client = _get_client(require_auth=True)
-    patch = ArtistProfilePatch(bio=bio, display_name=display_name, support_url=support_url)
+    patch = ArtistProfilePatch(
+        bio=bio, display_name=display_name, support_url=support_url
+    )
 
     try:
         profile = client.artists.update(patch)
@@ -588,15 +617,23 @@ def discover_search(
 
     for result in results.results:
         if result.type == "track":
-            console.print(f"[cyan]track[/] {result.id}: {result.title} by {result.artist_display_name}")
+            console.print(
+                f"[cyan]track[/] {result.id}: {result.title} by {result.artist_display_name}"
+            )
         elif result.type == "artist":
             console.print(f"[green]artist[/] @{result.handle}: {result.display_name}")
         elif result.type == "album":
-            console.print(f"[yellow]album[/] {result.title} by {result.artist_display_name}")
+            console.print(
+                f"[yellow]album[/] {result.title} by {result.artist_display_name}"
+            )
         elif result.type == "tag":
-            console.print(f"[magenta]tag[/] #{result.name} ({result.track_count} tracks)")
+            console.print(
+                f"[magenta]tag[/] #{result.name} ({result.track_count} tracks)"
+            )
         elif result.type == "playlist":
-            console.print(f"[blue]playlist[/] {result.name} by {result.owner_display_name}")
+            console.print(
+                f"[blue]playlist[/] {result.name} by {result.owner_display_name}"
+            )
 
 
 @discover_app.command(name="top")
