@@ -4,10 +4,38 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, TypeAlias
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+# ---------------------------------------------------------------------------
+# identifier types
+# ---------------------------------------------------------------------------
+
+TrackId: TypeAlias = Annotated[int, Field(description="plyr.fm track ID")]
+TrackUri: TypeAlias = Annotated[
+    str, Field(description="AT-URI (at://did/collection/rkey)")
+]
+TrackRef: TypeAlias = TrackId | TrackUri
+
+PlaylistId: TypeAlias = Annotated[str, Field(description="plyr.fm playlist ID (UUID)")]
+
+ArtistDid: TypeAlias = Annotated[
+    str, Field(description="ATProto DID (did:plc:... or did:web:...)")
+]
+ArtistHandle: TypeAlias = Annotated[str, Field(description="ATProto handle")]
+ArtistRef: TypeAlias = ArtistDid | ArtistHandle
+
+
+def is_at_uri(ref: int | str) -> bool:
+    """check if a reference is an AT-URI."""
+    return isinstance(ref, str) and ref.startswith("at://")
+
+
+# ---------------------------------------------------------------------------
+# patch types
+# ---------------------------------------------------------------------------
 
 
 class TrackPatch(BaseModel):
@@ -20,6 +48,11 @@ class TrackPatch(BaseModel):
     image: Path | str | None = None
 
     model_config = {"extra": "forbid"}
+
+
+# ---------------------------------------------------------------------------
+# artist types
+# ---------------------------------------------------------------------------
 
 
 class Artist(BaseModel):
@@ -56,6 +89,11 @@ class ArtistProfilePatch(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+# ---------------------------------------------------------------------------
+# album types
+# ---------------------------------------------------------------------------
+
+
 class Album(BaseModel):
     """album metadata."""
 
@@ -64,6 +102,11 @@ class Album(BaseModel):
     slug: str
     description: str | None = None
     image_url: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# track types
+# ---------------------------------------------------------------------------
 
 
 class Track(BaseModel):
@@ -82,6 +125,8 @@ class Track(BaseModel):
     audio_url: str | None = Field(default=None, alias="r2_url")
     tags: list[str] = Field(default_factory=list)
     created_at: datetime | None = None
+    atproto_uri: str | None = Field(default=None, alias="atproto_record_uri")
+    atproto_cid: str | None = Field(default=None, alias="atproto_record_cid")
 
     model_config = {"populate_by_name": True}
 
@@ -172,7 +217,9 @@ class SearchResponse(BaseModel):
     counts: dict[str, int]
 
 
-# --- tag types ---
+# ---------------------------------------------------------------------------
+# tag types
+# ---------------------------------------------------------------------------
 
 
 class Tag(BaseModel):
@@ -180,3 +227,45 @@ class Tag(BaseModel):
 
     name: str
     track_count: int
+
+
+# ---------------------------------------------------------------------------
+# playlist types
+# ---------------------------------------------------------------------------
+
+
+class Playlist(BaseModel):
+    """playlist metadata."""
+
+    id: str
+    name: str
+    owner_did: str
+    owner_handle: str
+    track_count: int = 0
+    image_url: str | None = None
+    show_on_profile: bool = False
+    atproto_record_uri: str | None = None
+    created_at: datetime | None = None
+
+
+class PlaylistWithTracks(Playlist):
+    """playlist with its tracks."""
+
+    tracks: list[Track] = Field(default_factory=list)
+
+
+class RecommendedTrack(BaseModel):
+    """track recommendation for a playlist."""
+
+    id: int
+    title: str
+    artist_handle: str
+    artist_display_name: str
+    image_url: str | None = None
+
+
+class PlaylistRecommendations(BaseModel):
+    """playlist track recommendations."""
+
+    tracks: list[RecommendedTrack]
+    available: bool

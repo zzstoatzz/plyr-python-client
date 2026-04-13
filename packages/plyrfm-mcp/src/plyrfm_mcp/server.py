@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from fastmcp import FastMCP
-from plyrfm import Track
-from plyrfm._internal.types import SearchResponse, Tag
+from plyrfm import Playlist, PlaylistWithTracks, Track
+from plyrfm._internal.types import PlaylistRecommendations, SearchResponse, Tag
 
 from plyrfm_mcp.client import get_plyr_client
 from plyrfm_mcp.filterable import filterable
@@ -41,16 +41,13 @@ when a user wants to upload music, guide them through these steps:
 export PLYR_TOKEN="their_token"
 
 # upload a track
-plyrfm upload path/to/track.mp3 "Song Title"
+plyrfm tracks upload path/to/track.mp3 "Song Title"
 
 # upload with album
-plyrfm upload track.mp3 "Song Title" --album "Album Name"
+plyrfm tracks upload track.mp3 "Song Title" --album "Album Name"
 
 # upload with tags (can use -t multiple times)
-plyrfm upload track.mp3 "Song Title" -t electronic -t ambient
-
-# upload with album and tags
-plyrfm upload track.mp3 "Song Title" --album "Album Name" -t ai -t podcast
+plyrfm tracks upload track.mp3 "Song Title" -t electronic -t ambient
 ```
 
 ## supported formats
@@ -82,10 +79,10 @@ when a user wants to download their music, guide them through these options:
 export PLYR_TOKEN="their_token"
 
 # download by track ID
-plyrfm download 42
+plyrfm tracks download 42
 
 # download to specific path
-plyrfm download 42 --output ~/Music/song.mp3
+plyrfm tracks download 42 --output ~/Music/song.mp3
 ```
 
 ## SDK usage (if user is writing python code)
@@ -93,12 +90,9 @@ plyrfm download 42 --output ~/Music/song.mp3
 ```python
 from plyrfm import PlyrClient
 
-# user provides their token
 client = PlyrClient(token="their_token")
-
-# download returns the saved path
-path = client.download(track_id=42)
-path = client.download(track_id=42, output="~/Music/song.mp3")
+path = client.tracks.download(42)
+path = client.tracks.download(42, output="~/Music/song.mp3")
 ```
 
 ## notes
@@ -108,7 +102,7 @@ path = client.download(track_id=42, output="~/Music/song.mp3")
 
 
 # -----------------------------------------------------------------------------
-# tools
+# track tools
 # -----------------------------------------------------------------------------
 
 
@@ -117,14 +111,14 @@ path = client.download(track_id=42, output="~/Music/song.mp3")
 async def list_tracks(limit: int = 20) -> list[Track]:
     """list public tracks on plyr.fm. no auth required."""
     async with get_plyr_client() as client:
-        return await client.list_tracks(limit=limit)
+        return await client.tracks.list(limit=limit)
 
 
 @mcp.tool
 async def get_track(track_id: int) -> Track:
     """get a single track by ID. no auth required."""
     async with get_plyr_client() as client:
-        return await client.get_track(track_id)
+        return await client.tracks.get(track_id)
 
 
 @mcp.tool
@@ -132,7 +126,7 @@ async def get_track(track_id: int) -> Track:
 async def my_tracks(limit: int = 20) -> list[Track]:
     """list your own tracks. requires auth (PLYR_TOKEN or x-plyr-token header)."""
     async with get_plyr_client(require_auth=True) as client:
-        return await client.my_tracks(limit=limit)
+        return await client.tracks.my(limit=limit)
 
 
 @mcp.tool
@@ -147,7 +141,7 @@ async def search(
         limit: max results per type (1-50)
     """
     async with get_plyr_client() as client:
-        return await client.search(query, type=type, limit=limit)
+        return await client.discover.search(query, type=type, limit=limit)
 
 
 @mcp.tool
@@ -155,7 +149,7 @@ async def search(
 async def top_tracks(limit: int = 10) -> list[Track]:
     """get top tracks by like count. no auth required."""
     async with get_plyr_client() as client:
-        return await client.top_tracks(limit=limit)
+        return await client.discover.top_tracks(limit=limit)
 
 
 @mcp.tool
@@ -168,7 +162,7 @@ async def list_tags(q: str | None = None, limit: int = 20) -> list[Tag]:
         limit: max results (1-100)
     """
     async with get_plyr_client() as client:
-        return await client.list_tags(q=q, limit=limit)
+        return await client.tags.list(q=q, limit=limit)
 
 
 @mcp.tool
@@ -176,7 +170,7 @@ async def list_tags(q: str | None = None, limit: int = 20) -> list[Tag]:
 async def tracks_by_tag(tag: str, limit: int = 50) -> list[Track]:
     """get tracks with a specific tag. no auth required."""
     async with get_plyr_client() as client:
-        return await client.tracks_by_tag(tag, limit=limit)
+        return await client.tags.tracks(tag, limit=limit)
 
 
 @mcp.tool
@@ -184,7 +178,53 @@ async def tracks_by_tag(tag: str, limit: int = 50) -> list[Track]:
 async def liked_tracks(limit: int = 20) -> list[Track]:
     """list your liked tracks. requires auth."""
     async with get_plyr_client(require_auth=True) as client:
-        return await client.liked_tracks(limit=limit)
+        return await client.tracks.liked(limit=limit)
+
+
+# -----------------------------------------------------------------------------
+# playlist tools (read-only)
+# -----------------------------------------------------------------------------
+
+
+@mcp.tool
+@filterable
+async def list_playlists() -> list[Playlist]:
+    """list your playlists. requires auth."""
+    async with get_plyr_client(require_auth=True) as client:
+        return await client.playlists.list()
+
+
+@mcp.tool
+async def get_playlist(playlist_id: str) -> PlaylistWithTracks:
+    """get a playlist with its tracks. no auth required."""
+    async with get_plyr_client() as client:
+        return await client.playlists.get(playlist_id)
+
+
+@mcp.tool
+@filterable
+async def playlists_by_artist(artist_did: str) -> list[Playlist]:
+    """list public playlists by an artist. no auth required.
+
+    args:
+        artist_did: ATProto DID of the artist (did:plc:... or did:web:...)
+    """
+    async with get_plyr_client() as client:
+        return await client.playlists.by_artist(artist_did)
+
+
+@mcp.tool
+async def playlist_recommendations(
+    playlist_id: str, limit: int = 3
+) -> PlaylistRecommendations:
+    """get track recommendations for a playlist. requires auth.
+
+    args:
+        playlist_id: playlist ID (UUID)
+        limit: max recommendations (1-10, default 3)
+    """
+    async with get_plyr_client(require_auth=True) as client:
+        return await client.playlists.recommendations(playlist_id, limit=limit)
 
 
 # -----------------------------------------------------------------------------

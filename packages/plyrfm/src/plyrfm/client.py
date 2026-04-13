@@ -10,23 +10,35 @@ import httpx
 
 from plyrfm._internal.config import Settings, get_settings
 from plyrfm._internal.types import (
+    ArtistDid,
     ArtistProfile,
     ArtistProfilePatch,
+    Playlist,
+    PlaylistId,
+    PlaylistRecommendations,
+    PlaylistWithTracks,
     SearchResponse,
     Tag,
     Track,
     TrackPatch,
+    TrackRef,
+    TrackUri,
     UploadResult,
+    is_at_uri,
 )
 
 
 def _get_user_agent(client_name: str = "plyrfm") -> str:
-    """get user-agent string for API requests."""
     try:
         v = version(client_name)
     except Exception:
         v = "unknown"
     return f"{client_name}/{v}"
+
+
+# ---------------------------------------------------------------------------
+# base client
+# ---------------------------------------------------------------------------
 
 
 class _BaseClient:
@@ -45,7 +57,6 @@ class _BaseClient:
 
     @property
     def _auth_headers(self) -> dict[str, str]:
-        """get auth headers. raises if no token configured."""
         if not self._token:
             msg = "authentication required. set PLYR_TOKEN or pass token= to client"
             raise ValueError(msg)
@@ -55,7 +66,6 @@ class _BaseClient:
         return f"{self._api_url}{path}"
 
     def _handle_error_response(self, response: httpx.Response) -> None:
-        """handle common error responses."""
         if response.status_code == 403:
             detail = response.json().get("detail", "")
             if "artist_profile_required" in detail:
@@ -67,196 +77,95 @@ class _BaseClient:
         response.raise_for_status()
 
 
-class PlyrClient(_BaseClient):
-    """synchronous client for the plyr.fm API.
+# ---------------------------------------------------------------------------
+# sync namespaces
+# ---------------------------------------------------------------------------
 
-    example:
-        # public operations (no auth needed)
-        client = PlyrClient()
-        tracks = client.list_tracks()
-        track = client.get_track(42)
 
-        # authenticated operations
-        client = PlyrClient(token="your_token")
-        my_tracks = client.my_tracks()
-        client.upload("song.mp3", "My Song")
-    """
+class _SyncNamespace:
+    def __init__(self, api: PlyrClient) -> None:
+        self._api = api
 
-    def __init__(
-        self,
-        *,
-        token: str | None = None,
-        api_url: str | None = None,
-        settings: Settings | None = None,
-        timeout: float = 30.0,
-        user_agent: str | None = None,
-    ) -> None:
-        super().__init__(token=token, api_url=api_url, settings=settings)
-        headers = {"User-Agent": user_agent or _get_user_agent()}
-        self._client = httpx.Client(timeout=timeout, headers=headers)
 
-    def __enter__(self) -> PlyrClient:
-        return self
+class TracksNamespace(_SyncNamespace):
+    """track operations."""
 
-    def __exit__(self, *args: object) -> None:
-        self._client.close()
-
-    def close(self) -> None:
-        """close the HTTP client."""
-        self._client.close()
-
-    # -------------------------------------------------------------------------
-    # public operations (no auth required)
-    # -------------------------------------------------------------------------
-
-    def list_tracks(self, *, limit: int = 50) -> list[Track]:
-        """list all public tracks. no auth required."""
-        response = self._client.get(
-            self._url("/tracks/"),
+    def list(self, *, limit: int = 50) -> list[Track]:
+        """list public tracks."""
+        response = self._api._client.get(
+            self._api._url("/tracks/"),
             params={"limit": limit},
         )
         response.raise_for_status()
         data = response.json()
         return [Track.model_validate(t) for t in data.get("tracks", [])]
 
-    def get_track(self, track_id: int) -> Track:
-        """get a single track by ID. no auth required."""
-        response = self._client.get(
-            self._url(f"/tracks/{track_id}"),
+    def get(self, track: TrackRef) -> Track:
+        """get a track by ID or AT-URI."""
+        if is_at_uri(track):
+            return self.get_by_uri(track)  # type: ignore[arg-type]
+        response = self._api._client.get(self._api._url(f"/tracks/{track}"))
+        response.raise_for_status()
+        return Track.model_validate(response.json())
+
+    def get_by_uri(self, uri: TrackUri) -> Track:
+        """get a track by AT-URI."""
+        response = self._api._client.get(
+            self._api._url("/tracks/by-uri"),
+            params={"uri": uri},
         )
         response.raise_for_status()
         return Track.model_validate(response.json())
 
-    def search(
-        self,
-        query: str,
-        *,
-        type: str | None = None,
-        limit: int = 20,
-    ) -> SearchResponse:
-        """search tracks, artists, albums, and tags. no auth required.
+    def _resolve(self, track: TrackRef) -> Track:
+        """resolve a TrackRef to a full Track."""
+        return self.get(track)
 
-        args:
-            query: search query (2-100 chars)
-            type: filter by type (tracks, artists, albums, tags - comma-separated)
-            limit: max results per type (1-50)
-        """
-        params: dict[str, str | int] = {"q": query, "limit": limit}
-        if type:
-            params["type"] = type
-        response = self._client.get(self._url("/search/"), params=params)
-        response.raise_for_status()
-        return SearchResponse.model_validate(response.json())
+    def _resolve_id(self, track: TrackRef) -> int:
+        """resolve a TrackRef to an integer ID."""
+        if is_at_uri(track):
+            return self._resolve(track).id
+        return track  # type: ignore[return-value]
 
-    def top_tracks(self, *, limit: int = 10) -> list[Track]:
-        """get top tracks by like count. no auth required."""
-        response = self._client.get(
-            self._url("/tracks/top"),
-            params={"limit": limit},
-        )
-        response.raise_for_status()
-        return [Track.model_validate(t) for t in response.json()]
-
-    def list_tags(self, *, q: str | None = None, limit: int = 20) -> list[Tag]:
-        """list tags with track counts. no auth required.
-
-        args:
-            q: optional prefix search query
-            limit: max results (1-100)
-        """
-        params: dict[str, str | int] = {"limit": limit}
-        if q:
-            params["q"] = q
-        response = self._client.get(self._url("/tracks/tags"), params=params)
-        response.raise_for_status()
-        return [Tag.model_validate(t) for t in response.json()]
-
-    def tracks_by_tag(self, tag: str, *, limit: int = 50) -> list[Track]:
-        """get tracks with a specific tag. no auth required."""
-        response = self._client.get(self._url(f"/tracks/tags/{tag}"))
-        response.raise_for_status()
-        data = response.json()
-        return [Track.model_validate(t) for t in data.get("tracks", [])]
-
-    # -------------------------------------------------------------------------
-    # authenticated operations
-    # -------------------------------------------------------------------------
-
-    def me(self) -> dict[str, str]:
-        """get current user info. requires auth."""
-        response = self._client.get(
-            self._url("/auth/me"),
-            headers=self._auth_headers,
-        )
-        response.raise_for_status()
-        return response.json()
-
-    def my_tracks(self, *, limit: int = 50) -> list[Track]:
-        """list your own tracks. requires auth."""
-        response = self._client.get(
-            self._url("/tracks/me"),
-            headers=self._auth_headers,
+    def my(self, *, limit: int = 50) -> list[Track]:
+        """list your tracks. requires auth."""
+        response = self._api._client.get(
+            self._api._url("/tracks/me"),
+            headers=self._api._auth_headers,
             params={"limit": limit},
         )
         response.raise_for_status()
         data = response.json()
         return [Track.model_validate(t) for t in data.get("tracks", [])]
 
-    def liked_tracks(self, *, limit: int = 50) -> list[Track]:
+    def liked(self, *, limit: int = 50) -> list[Track]:
         """list tracks you've liked. requires auth."""
-        response = self._client.get(
-            self._url("/tracks/liked"),
-            headers=self._auth_headers,
+        response = self._api._client.get(
+            self._api._url("/tracks/liked"),
+            headers=self._api._auth_headers,
             params={"limit": limit},
         )
         response.raise_for_status()
         data = response.json()
         return [Track.model_validate(t) for t in data.get("tracks", [])]
 
-    def like(self, track_id: int) -> None:
+    def like(self, track: TrackRef) -> None:
         """like a track. requires auth."""
-        response = self._client.post(
-            self._url(f"/tracks/{track_id}/like"),
-            headers=self._auth_headers,
+        track_id = self._resolve_id(track)
+        response = self._api._client.post(
+            self._api._url(f"/tracks/{track_id}/like"),
+            headers=self._api._auth_headers,
         )
-        self._handle_error_response(response)
+        self._api._handle_error_response(response)
 
-    def unlike(self, track_id: int) -> None:
+    def unlike(self, track: TrackRef) -> None:
         """unlike a track. requires auth."""
-        response = self._client.delete(
-            self._url(f"/tracks/{track_id}/like"),
-            headers=self._auth_headers,
+        track_id = self._resolve_id(track)
+        response = self._api._client.delete(
+            self._api._url(f"/tracks/{track_id}/like"),
+            headers=self._api._auth_headers,
         )
-        self._handle_error_response(response)
-
-    def get_artist_profile(self) -> ArtistProfile:
-        """get your artist profile. requires auth."""
-        response = self._client.get(
-            self._url("/artists/me"),
-            headers=self._auth_headers,
-        )
-        response.raise_for_status()
-        return ArtistProfile.model_validate(response.json())
-
-    def update_artist_profile(self, patch: ArtistProfilePatch) -> ArtistProfile:
-        """update your artist profile. requires auth."""
-        data: dict[str, str | bool] = {}
-        if patch.bio is not None:
-            data["bio"] = patch.bio
-        if patch.display_name is not None:
-            data["display_name"] = patch.display_name
-        if patch.support_url is not None:
-            data["support_url"] = patch.support_url
-        if patch.show_liked_on_profile is not None:
-            data["show_liked_on_profile"] = patch.show_liked_on_profile
-
-        response = self._client.put(
-            self._url("/artists/me"),
-            headers=self._auth_headers,
-            json=data,
-        )
-        self._handle_error_response(response)
-        return ArtistProfile.model_validate(response.json())
+        self._api._handle_error_response(response)
 
     def upload(
         self,
@@ -281,15 +190,15 @@ class PlyrClient(_BaseClient):
             if tags:
                 data["tags"] = json.dumps(list(tags))
 
-            response = self._client.post(
-                self._url("/tracks/"),
-                headers=self._auth_headers,
+            response = self._api._client.post(
+                self._api._url("/tracks/"),
+                headers=self._api._auth_headers,
                 files=files,
                 data=data,
                 timeout=timeout,
             )
 
-        self._handle_error_response(response)
+        self._api._handle_error_response(response)
         upload_data = response.json()
 
         if track_id := upload_data.get("track_id"):
@@ -302,8 +211,9 @@ class PlyrClient(_BaseClient):
 
         return self._poll_upload(upload_id, title, timeout=timeout)
 
-    def update_track(self, track_id: int, patch: TrackPatch) -> Track:
+    def update(self, track: TrackRef, patch: TrackPatch) -> Track:
         """update track metadata. requires auth + ownership."""
+        track_id = self._resolve_id(track)
         data: dict[str, str] = {}
         if patch.title is not None:
             data["title"] = patch.title
@@ -321,33 +231,29 @@ class PlyrClient(_BaseClient):
                 raise FileNotFoundError(msg)
             with open(image_path, "rb") as f:
                 files = {"image": (image_path.name, f)}
-                response = self._client.patch(
-                    self._url(f"/tracks/{track_id}"),
-                    headers=self._auth_headers,
+                response = self._api._client.patch(
+                    self._api._url(f"/tracks/{track_id}"),
+                    headers=self._api._auth_headers,
                     data=data if data else None,
                     files=files,
                 )
         else:
-            response = self._client.patch(
-                self._url(f"/tracks/{track_id}"),
-                headers=self._auth_headers,
+            response = self._api._client.patch(
+                self._api._url(f"/tracks/{track_id}"),
+                headers=self._api._auth_headers,
                 data=data if data else None,
             )
 
-        self._handle_error_response(response)
+        self._api._handle_error_response(response)
         return Track.model_validate(response.json())
 
     def _poll_upload(
-        self,
-        upload_id: str,
-        title: str,
-        *,
-        timeout: float = 300.0,
+        self, upload_id: str, title: str, *, timeout: float = 300.0
     ) -> UploadResult:
-        with self._client.stream(
+        with self._api._client.stream(
             "GET",
-            self._url(f"/tracks/uploads/{upload_id}/progress"),
-            headers=self._auth_headers,
+            self._api._url(f"/tracks/uploads/{upload_id}/progress"),
+            headers=self._api._auth_headers,
             timeout=timeout,
         ) as response:
             for line in response.iter_lines():
@@ -363,35 +269,36 @@ class PlyrClient(_BaseClient):
         msg = "upload stream ended without completion"
         raise ValueError(msg)
 
-    def delete(self, track_id: int) -> None:
+    def delete(self, track: TrackRef) -> None:
         """delete a track. requires auth + ownership."""
-        response = self._client.delete(
-            self._url(f"/tracks/{track_id}"),
-            headers=self._auth_headers,
+        track_id = self._resolve_id(track)
+        response = self._api._client.delete(
+            self._api._url(f"/tracks/{track_id}"),
+            headers=self._api._auth_headers,
         )
         response.raise_for_status()
 
     def download(
         self,
-        track_id: int,
+        track: TrackRef,
         output: Path | str | None = None,
         *,
         timeout: float = 300.0,
     ) -> Path:
         """download a track's audio file. requires auth."""
-        track = self.get_track(track_id)
+        resolved = self._resolve(track)
 
         if output is None:
             safe_title = "".join(
-                c if c.isalnum() or c in " -_" else "" for c in track.title
+                c if c.isalnum() or c in " -_" else "" for c in resolved.title
             )
-            output = Path(f"{safe_title}.{track.file_type}")
+            output = Path(f"{safe_title}.{resolved.file_type}")
         else:
             output = Path(output)
 
-        response = self._client.get(
-            self._url(f"/audio/{track.file_id}"),
-            headers=self._auth_headers,
+        response = self._api._client.get(
+            self._api._url(f"/audio/{resolved.file_id}"),
+            headers=self._api._auth_headers,
             follow_redirects=True,
             timeout=timeout,
         )
@@ -400,177 +307,151 @@ class PlyrClient(_BaseClient):
         return output
 
 
-class AsyncPlyrClient(_BaseClient):
-    """asynchronous client for the plyr.fm API.
+class PlaylistsNamespace(_SyncNamespace):
+    """playlist operations."""
 
-    example:
-        # public operations (no auth needed)
-        async with AsyncPlyrClient() as client:
-            tracks = await client.list_tracks()
+    def list(self) -> list[Playlist]:
+        """list your playlists. requires auth."""
+        response = self._api._client.get(
+            self._api._url("/lists/playlists"),
+            headers=self._api._auth_headers,
+        )
+        response.raise_for_status()
+        return [Playlist.model_validate(p) for p in response.json()]
 
-        # authenticated operations
-        async with AsyncPlyrClient(token="your_token") as client:
-            my_tracks = await client.my_tracks()
-            await client.upload("song.mp3", "My Song")
-    """
+    def get(self, playlist: PlaylistId) -> PlaylistWithTracks:
+        """get a playlist with its tracks."""
+        response = self._api._client.get(
+            self._api._url(f"/lists/playlists/{playlist}"),
+        )
+        response.raise_for_status()
+        return PlaylistWithTracks.model_validate(response.json())
 
-    def __init__(
+    def by_artist(self, artist: ArtistDid) -> list[Playlist]:
+        """list public playlists by an artist."""
+        response = self._api._client.get(
+            self._api._url(f"/lists/playlists/by-artist/{artist}"),
+        )
+        response.raise_for_status()
+        return [Playlist.model_validate(p) for p in response.json()]
+
+    def create(self, name: str) -> Playlist:
+        """create a playlist. requires auth."""
+        response = self._api._client.post(
+            self._api._url("/lists/playlists"),
+            headers=self._api._auth_headers,
+            json={"name": name},
+        )
+        self._api._handle_error_response(response)
+        return Playlist.model_validate(response.json())
+
+    def add_track(self, playlist: PlaylistId, track: TrackRef) -> Playlist:
+        """add a track to a playlist. requires auth."""
+        resolved = self._api.tracks._resolve(track)
+        if not resolved.atproto_uri or not resolved.atproto_cid:
+            msg = f"track {track} has no ATProto record — cannot add to playlist"
+            raise ValueError(msg)
+        response = self._api._client.post(
+            self._api._url(f"/lists/playlists/{playlist}/tracks"),
+            headers=self._api._auth_headers,
+            json={
+                "track_uri": resolved.atproto_uri,
+                "track_cid": resolved.atproto_cid,
+            },
+        )
+        self._api._handle_error_response(response)
+        return Playlist.model_validate(response.json())
+
+    def remove_track(self, playlist: PlaylistId, track: TrackRef) -> Playlist:
+        """remove a track from a playlist. requires auth."""
+        resolved = self._api.tracks._resolve(track)
+        if not resolved.atproto_uri:
+            msg = f"track {track} has no ATProto record — cannot remove from playlist"
+            raise ValueError(msg)
+        response = self._api._client.delete(
+            self._api._url(
+                f"/lists/playlists/{playlist}/tracks/{resolved.atproto_uri}"
+            ),
+            headers=self._api._auth_headers,
+        )
+        self._api._handle_error_response(response)
+        return Playlist.model_validate(response.json())
+
+    def update(
         self,
+        playlist: PlaylistId,
         *,
-        token: str | None = None,
-        api_url: str | None = None,
-        settings: Settings | None = None,
-        timeout: float = 30.0,
-        user_agent: str | None = None,
-    ) -> None:
-        super().__init__(token=token, api_url=api_url, settings=settings)
-        headers = {"User-Agent": user_agent or _get_user_agent()}
-        self._client = httpx.AsyncClient(timeout=timeout, headers=headers)
+        name: str | None = None,
+        show_on_profile: bool | None = None,
+    ) -> Playlist:
+        """update playlist metadata. requires auth."""
+        data: dict[str, str | bool] = {}
+        if name is not None:
+            data["name"] = name
+        if show_on_profile is not None:
+            data["show_on_profile"] = show_on_profile
+        response = self._api._client.patch(
+            self._api._url(f"/lists/playlists/{playlist}"),
+            headers=self._api._auth_headers,
+            data=data,
+        )
+        self._api._handle_error_response(response)
+        return Playlist.model_validate(response.json())
 
-    async def __aenter__(self) -> AsyncPlyrClient:
-        return self
+    def delete(self, playlist: PlaylistId) -> None:
+        """delete a playlist. requires auth."""
+        response = self._api._client.delete(
+            self._api._url(f"/lists/playlists/{playlist}"),
+            headers=self._api._auth_headers,
+        )
+        response.raise_for_status()
 
-    async def __aexit__(self, *args: object) -> None:
-        await self._client.aclose()
-
-    async def close(self) -> None:
-        """close the HTTP client."""
-        await self._client.aclose()
-
-    # -------------------------------------------------------------------------
-    # public operations (no auth required)
-    # -------------------------------------------------------------------------
-
-    async def list_tracks(self, *, limit: int = 50) -> list[Track]:
-        """list all public tracks. no auth required."""
-        response = await self._client.get(
-            self._url("/tracks/"),
+    def recommendations(
+        self, playlist: PlaylistId, *, limit: int = 3
+    ) -> PlaylistRecommendations:
+        """get track recommendations for a playlist. requires auth."""
+        response = self._api._client.get(
+            self._api._url(f"/lists/playlists/{playlist}/recommendations"),
+            headers=self._api._auth_headers,
             params={"limit": limit},
         )
         response.raise_for_status()
-        data = response.json()
-        return [Track.model_validate(t) for t in data.get("tracks", [])]
+        return PlaylistRecommendations.model_validate(response.json())
 
-    async def get_track(self, track_id: int) -> Track:
-        """get a single track by ID. no auth required."""
-        response = await self._client.get(
-            self._url(f"/tracks/{track_id}"),
-        )
-        response.raise_for_status()
-        return Track.model_validate(response.json())
 
-    async def search(
-        self,
-        query: str,
-        *,
-        type: str | None = None,
-        limit: int = 20,
-    ) -> SearchResponse:
-        """search tracks, artists, albums, and tags. no auth required.
+class TagsNamespace(_SyncNamespace):
+    """tag operations."""
 
-        args:
-            query: search query (2-100 chars)
-            type: filter by type (tracks, artists, albums, tags - comma-separated)
-            limit: max results per type (1-50)
-        """
-        params: dict[str, str | int] = {"q": query, "limit": limit}
-        if type:
-            params["type"] = type
-        response = await self._client.get(self._url("/search/"), params=params)
-        response.raise_for_status()
-        return SearchResponse.model_validate(response.json())
-
-    async def top_tracks(self, *, limit: int = 10) -> list[Track]:
-        """get top tracks by like count. no auth required."""
-        response = await self._client.get(
-            self._url("/tracks/top"),
-            params={"limit": limit},
-        )
-        response.raise_for_status()
-        return [Track.model_validate(t) for t in response.json()]
-
-    async def list_tags(self, *, q: str | None = None, limit: int = 20) -> list[Tag]:
-        """list tags with track counts. no auth required.
-
-        args:
-            q: optional prefix search query
-            limit: max results (1-100)
-        """
+    def list(self, *, q: str | None = None, limit: int = 20) -> list[Tag]:
+        """list tags with track counts."""
         params: dict[str, str | int] = {"limit": limit}
         if q:
             params["q"] = q
-        response = await self._client.get(self._url("/tracks/tags"), params=params)
+        response = self._api._client.get(self._api._url("/tracks/tags"), params=params)
         response.raise_for_status()
         return [Tag.model_validate(t) for t in response.json()]
 
-    async def tracks_by_tag(self, tag: str, *, limit: int = 50) -> list[Track]:
-        """get tracks with a specific tag. no auth required."""
-        response = await self._client.get(self._url(f"/tracks/tags/{tag}"))
+    def tracks(self, tag: str, *, limit: int = 50) -> list[Track]:
+        """get tracks with a specific tag."""
+        response = self._api._client.get(self._api._url(f"/tracks/tags/{tag}"))
         response.raise_for_status()
         data = response.json()
         return [Track.model_validate(t) for t in data.get("tracks", [])]
 
-    # -------------------------------------------------------------------------
-    # authenticated operations
-    # -------------------------------------------------------------------------
 
-    async def me(self) -> dict[str, str]:
-        """get current user info. requires auth."""
-        response = await self._client.get(
-            self._url("/auth/me"),
-            headers=self._auth_headers,
-        )
-        response.raise_for_status()
-        return response.json()
+class ArtistsNamespace(_SyncNamespace):
+    """artist operations."""
 
-    async def my_tracks(self, *, limit: int = 50) -> list[Track]:
-        """list your own tracks. requires auth."""
-        response = await self._client.get(
-            self._url("/tracks/me"),
-            headers=self._auth_headers,
-            params={"limit": limit},
-        )
-        response.raise_for_status()
-        data = response.json()
-        return [Track.model_validate(t) for t in data.get("tracks", [])]
-
-    async def liked_tracks(self, *, limit: int = 50) -> list[Track]:
-        """list tracks you've liked. requires auth."""
-        response = await self._client.get(
-            self._url("/tracks/liked"),
-            headers=self._auth_headers,
-            params={"limit": limit},
-        )
-        response.raise_for_status()
-        data = response.json()
-        return [Track.model_validate(t) for t in data.get("tracks", [])]
-
-    async def like(self, track_id: int) -> None:
-        """like a track. requires auth."""
-        response = await self._client.post(
-            self._url(f"/tracks/{track_id}/like"),
-            headers=self._auth_headers,
-        )
-        self._handle_error_response(response)
-
-    async def unlike(self, track_id: int) -> None:
-        """unlike a track. requires auth."""
-        response = await self._client.delete(
-            self._url(f"/tracks/{track_id}/like"),
-            headers=self._auth_headers,
-        )
-        self._handle_error_response(response)
-
-    async def get_artist_profile(self) -> ArtistProfile:
+    def me(self) -> ArtistProfile:
         """get your artist profile. requires auth."""
-        response = await self._client.get(
-            self._url("/artists/me"),
-            headers=self._auth_headers,
+        response = self._api._client.get(
+            self._api._url("/artists/me"),
+            headers=self._api._auth_headers,
         )
         response.raise_for_status()
         return ArtistProfile.model_validate(response.json())
 
-    async def update_artist_profile(self, patch: ArtistProfilePatch) -> ArtistProfile:
+    def update(self, patch: ArtistProfilePatch) -> ArtistProfile:
         """update your artist profile. requires auth."""
         data: dict[str, str | bool] = {}
         if patch.bio is not None:
@@ -582,13 +463,119 @@ class AsyncPlyrClient(_BaseClient):
         if patch.show_liked_on_profile is not None:
             data["show_liked_on_profile"] = patch.show_liked_on_profile
 
-        response = await self._client.put(
-            self._url("/artists/me"),
-            headers=self._auth_headers,
+        response = self._api._client.put(
+            self._api._url("/artists/me"),
+            headers=self._api._auth_headers,
             json=data,
         )
-        self._handle_error_response(response)
+        self._api._handle_error_response(response)
         return ArtistProfile.model_validate(response.json())
+
+
+class DiscoverNamespace(_SyncNamespace):
+    """discovery operations."""
+
+    def search(
+        self, query: str, *, type: str | None = None, limit: int = 20
+    ) -> SearchResponse:
+        """search tracks, artists, albums, and tags."""
+        params: dict[str, str | int] = {"q": query, "limit": limit}
+        if type:
+            params["type"] = type
+        response = self._api._client.get(self._api._url("/search/"), params=params)
+        response.raise_for_status()
+        return SearchResponse.model_validate(response.json())
+
+    def top_tracks(self, *, limit: int = 10) -> list[Track]:
+        """get top tracks by like count."""
+        response = self._api._client.get(
+            self._api._url("/tracks/top"),
+            params={"limit": limit},
+        )
+        response.raise_for_status()
+        return [Track.model_validate(t) for t in response.json()]
+
+
+# ---------------------------------------------------------------------------
+# async namespaces
+# ---------------------------------------------------------------------------
+
+
+class _AsyncNamespace:
+    def __init__(self, api: AsyncPlyrClient) -> None:
+        self._api = api
+
+
+class AsyncTracksNamespace(_AsyncNamespace):
+    """track operations (async)."""
+
+    async def list(self, *, limit: int = 50) -> list[Track]:
+        response = await self._api._client.get(
+            self._api._url("/tracks/"),
+            params={"limit": limit},
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [Track.model_validate(t) for t in data.get("tracks", [])]
+
+    async def get(self, track: TrackRef) -> Track:
+        if is_at_uri(track):
+            return await self.get_by_uri(track)  # type: ignore[arg-type]
+        response = await self._api._client.get(self._api._url(f"/tracks/{track}"))
+        response.raise_for_status()
+        return Track.model_validate(response.json())
+
+    async def get_by_uri(self, uri: TrackUri) -> Track:
+        response = await self._api._client.get(
+            self._api._url("/tracks/by-uri"),
+            params={"uri": uri},
+        )
+        response.raise_for_status()
+        return Track.model_validate(response.json())
+
+    async def _resolve(self, track: TrackRef) -> Track:
+        return await self.get(track)
+
+    async def _resolve_id(self, track: TrackRef) -> int:
+        if is_at_uri(track):
+            return (await self._resolve(track)).id
+        return track  # type: ignore[return-value]
+
+    async def my(self, *, limit: int = 50) -> list[Track]:
+        response = await self._api._client.get(
+            self._api._url("/tracks/me"),
+            headers=self._api._auth_headers,
+            params={"limit": limit},
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [Track.model_validate(t) for t in data.get("tracks", [])]
+
+    async def liked(self, *, limit: int = 50) -> list[Track]:
+        response = await self._api._client.get(
+            self._api._url("/tracks/liked"),
+            headers=self._api._auth_headers,
+            params={"limit": limit},
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [Track.model_validate(t) for t in data.get("tracks", [])]
+
+    async def like(self, track: TrackRef) -> None:
+        track_id = await self._resolve_id(track)
+        response = await self._api._client.post(
+            self._api._url(f"/tracks/{track_id}/like"),
+            headers=self._api._auth_headers,
+        )
+        self._api._handle_error_response(response)
+
+    async def unlike(self, track: TrackRef) -> None:
+        track_id = await self._resolve_id(track)
+        response = await self._api._client.delete(
+            self._api._url(f"/tracks/{track_id}/like"),
+            headers=self._api._auth_headers,
+        )
+        self._api._handle_error_response(response)
 
     async def upload(
         self,
@@ -599,7 +586,6 @@ class AsyncPlyrClient(_BaseClient):
         tags: set[str] | None = None,
         timeout: float = 300.0,
     ) -> UploadResult:
-        """upload a track. requires auth + artist profile."""
         file = Path(file)
         if not file.exists():
             msg = f"file not found: {file}"
@@ -613,15 +599,15 @@ class AsyncPlyrClient(_BaseClient):
             if tags:
                 data["tags"] = json.dumps(list(tags))
 
-            response = await self._client.post(
-                self._url("/tracks/"),
-                headers=self._auth_headers,
+            response = await self._api._client.post(
+                self._api._url("/tracks/"),
+                headers=self._api._auth_headers,
                 files=files,
                 data=data,
                 timeout=timeout,
             )
 
-        self._handle_error_response(response)
+        self._api._handle_error_response(response)
         upload_data = response.json()
 
         if track_id := upload_data.get("track_id"):
@@ -634,8 +620,8 @@ class AsyncPlyrClient(_BaseClient):
 
         return await self._poll_upload(upload_id, title, timeout=timeout)
 
-    async def update_track(self, track_id: int, patch: TrackPatch) -> Track:
-        """update track metadata. requires auth + ownership."""
+    async def update(self, track: TrackRef, patch: TrackPatch) -> Track:
+        track_id = await self._resolve_id(track)
         data: dict[str, str] = {}
         if patch.title is not None:
             data["title"] = patch.title
@@ -653,33 +639,29 @@ class AsyncPlyrClient(_BaseClient):
                 raise FileNotFoundError(msg)
             with open(image_path, "rb") as f:
                 files = {"image": (image_path.name, f)}
-                response = await self._client.patch(
-                    self._url(f"/tracks/{track_id}"),
-                    headers=self._auth_headers,
+                response = await self._api._client.patch(
+                    self._api._url(f"/tracks/{track_id}"),
+                    headers=self._api._auth_headers,
                     data=data if data else None,
                     files=files,
                 )
         else:
-            response = await self._client.patch(
-                self._url(f"/tracks/{track_id}"),
-                headers=self._auth_headers,
+            response = await self._api._client.patch(
+                self._api._url(f"/tracks/{track_id}"),
+                headers=self._api._auth_headers,
                 data=data if data else None,
             )
 
-        self._handle_error_response(response)
+        self._api._handle_error_response(response)
         return Track.model_validate(response.json())
 
     async def _poll_upload(
-        self,
-        upload_id: str,
-        title: str,
-        *,
-        timeout: float = 300.0,
+        self, upload_id: str, title: str, *, timeout: float = 300.0
     ) -> UploadResult:
-        async with self._client.stream(
+        async with self._api._client.stream(
             "GET",
-            self._url(f"/tracks/uploads/{upload_id}/progress"),
-            headers=self._auth_headers,
+            self._api._url(f"/tracks/uploads/{upload_id}/progress"),
+            headers=self._api._auth_headers,
             timeout=timeout,
         ) as response:
             async for line in response.aiter_lines():
@@ -695,38 +677,320 @@ class AsyncPlyrClient(_BaseClient):
         msg = "upload stream ended without completion"
         raise ValueError(msg)
 
-    async def delete(self, track_id: int) -> None:
-        """delete a track. requires auth + ownership."""
-        response = await self._client.delete(
-            self._url(f"/tracks/{track_id}"),
-            headers=self._auth_headers,
+    async def delete(self, track: TrackRef) -> None:
+        track_id = await self._resolve_id(track)
+        response = await self._api._client.delete(
+            self._api._url(f"/tracks/{track_id}"),
+            headers=self._api._auth_headers,
         )
         response.raise_for_status()
 
     async def download(
         self,
-        track_id: int,
+        track: TrackRef,
         output: Path | str | None = None,
         *,
         timeout: float = 300.0,
     ) -> Path:
-        """download a track's audio file. requires auth."""
-        track = await self.get_track(track_id)
+        resolved = await self._resolve(track)
 
         if output is None:
             safe_title = "".join(
-                c if c.isalnum() or c in " -_" else "" for c in track.title
+                c if c.isalnum() or c in " -_" else "" for c in resolved.title
             )
-            output = Path(f"{safe_title}.{track.file_type}")
+            output = Path(f"{safe_title}.{resolved.file_type}")
         else:
             output = Path(output)
 
-        response = await self._client.get(
-            self._url(f"/audio/{track.file_id}"),
-            headers=self._auth_headers,
+        response = await self._api._client.get(
+            self._api._url(f"/audio/{resolved.file_id}"),
+            headers=self._api._auth_headers,
             follow_redirects=True,
             timeout=timeout,
         )
         response.raise_for_status()
         output.write_bytes(response.content)
         return output
+
+
+class AsyncPlaylistsNamespace(_AsyncNamespace):
+    """playlist operations (async)."""
+
+    async def list(self) -> list[Playlist]:
+        response = await self._api._client.get(
+            self._api._url("/lists/playlists"),
+            headers=self._api._auth_headers,
+        )
+        response.raise_for_status()
+        return [Playlist.model_validate(p) for p in response.json()]
+
+    async def get(self, playlist: PlaylistId) -> PlaylistWithTracks:
+        response = await self._api._client.get(
+            self._api._url(f"/lists/playlists/{playlist}"),
+        )
+        response.raise_for_status()
+        return PlaylistWithTracks.model_validate(response.json())
+
+    async def by_artist(self, artist: ArtistDid) -> list[Playlist]:
+        response = await self._api._client.get(
+            self._api._url(f"/lists/playlists/by-artist/{artist}"),
+        )
+        response.raise_for_status()
+        return [Playlist.model_validate(p) for p in response.json()]
+
+    async def create(self, name: str) -> Playlist:
+        response = await self._api._client.post(
+            self._api._url("/lists/playlists"),
+            headers=self._api._auth_headers,
+            json={"name": name},
+        )
+        self._api._handle_error_response(response)
+        return Playlist.model_validate(response.json())
+
+    async def add_track(self, playlist: PlaylistId, track: TrackRef) -> Playlist:
+        resolved = await self._api.tracks._resolve(track)
+        if not resolved.atproto_uri or not resolved.atproto_cid:
+            msg = f"track {track} has no ATProto record — cannot add to playlist"
+            raise ValueError(msg)
+        response = await self._api._client.post(
+            self._api._url(f"/lists/playlists/{playlist}/tracks"),
+            headers=self._api._auth_headers,
+            json={
+                "track_uri": resolved.atproto_uri,
+                "track_cid": resolved.atproto_cid,
+            },
+        )
+        self._api._handle_error_response(response)
+        return Playlist.model_validate(response.json())
+
+    async def remove_track(self, playlist: PlaylistId, track: TrackRef) -> Playlist:
+        resolved = await self._api.tracks._resolve(track)
+        if not resolved.atproto_uri:
+            msg = f"track {track} has no ATProto record — cannot remove from playlist"
+            raise ValueError(msg)
+        response = await self._api._client.delete(
+            self._api._url(
+                f"/lists/playlists/{playlist}/tracks/{resolved.atproto_uri}"
+            ),
+            headers=self._api._auth_headers,
+        )
+        self._api._handle_error_response(response)
+        return Playlist.model_validate(response.json())
+
+    async def update(
+        self,
+        playlist: PlaylistId,
+        *,
+        name: str | None = None,
+        show_on_profile: bool | None = None,
+    ) -> Playlist:
+        data: dict[str, str | bool] = {}
+        if name is not None:
+            data["name"] = name
+        if show_on_profile is not None:
+            data["show_on_profile"] = show_on_profile
+        response = await self._api._client.patch(
+            self._api._url(f"/lists/playlists/{playlist}"),
+            headers=self._api._auth_headers,
+            data=data,
+        )
+        self._api._handle_error_response(response)
+        return Playlist.model_validate(response.json())
+
+    async def delete(self, playlist: PlaylistId) -> None:
+        response = await self._api._client.delete(
+            self._api._url(f"/lists/playlists/{playlist}"),
+            headers=self._api._auth_headers,
+        )
+        response.raise_for_status()
+
+    async def recommendations(
+        self, playlist: PlaylistId, *, limit: int = 3
+    ) -> PlaylistRecommendations:
+        response = await self._api._client.get(
+            self._api._url(f"/lists/playlists/{playlist}/recommendations"),
+            headers=self._api._auth_headers,
+            params={"limit": limit},
+        )
+        response.raise_for_status()
+        return PlaylistRecommendations.model_validate(response.json())
+
+
+class AsyncTagsNamespace(_AsyncNamespace):
+    """tag operations (async)."""
+
+    async def list(self, *, q: str | None = None, limit: int = 20) -> list[Tag]:
+        params: dict[str, str | int] = {"limit": limit}
+        if q:
+            params["q"] = q
+        response = await self._api._client.get(
+            self._api._url("/tracks/tags"), params=params
+        )
+        response.raise_for_status()
+        return [Tag.model_validate(t) for t in response.json()]
+
+    async def tracks(self, tag: str, *, limit: int = 50) -> list[Track]:
+        response = await self._api._client.get(self._api._url(f"/tracks/tags/{tag}"))
+        response.raise_for_status()
+        data = response.json()
+        return [Track.model_validate(t) for t in data.get("tracks", [])]
+
+
+class AsyncArtistsNamespace(_AsyncNamespace):
+    """artist operations (async)."""
+
+    async def me(self) -> ArtistProfile:
+        response = await self._api._client.get(
+            self._api._url("/artists/me"),
+            headers=self._api._auth_headers,
+        )
+        response.raise_for_status()
+        return ArtistProfile.model_validate(response.json())
+
+    async def update(self, patch: ArtistProfilePatch) -> ArtistProfile:
+        data: dict[str, str | bool] = {}
+        if patch.bio is not None:
+            data["bio"] = patch.bio
+        if patch.display_name is not None:
+            data["display_name"] = patch.display_name
+        if patch.support_url is not None:
+            data["support_url"] = patch.support_url
+        if patch.show_liked_on_profile is not None:
+            data["show_liked_on_profile"] = patch.show_liked_on_profile
+
+        response = await self._api._client.put(
+            self._api._url("/artists/me"),
+            headers=self._api._auth_headers,
+            json=data,
+        )
+        self._api._handle_error_response(response)
+        return ArtistProfile.model_validate(response.json())
+
+
+class AsyncDiscoverNamespace(_AsyncNamespace):
+    """discovery operations (async)."""
+
+    async def search(
+        self, query: str, *, type: str | None = None, limit: int = 20
+    ) -> SearchResponse:
+        params: dict[str, str | int] = {"q": query, "limit": limit}
+        if type:
+            params["type"] = type
+        response = await self._api._client.get(
+            self._api._url("/search/"), params=params
+        )
+        response.raise_for_status()
+        return SearchResponse.model_validate(response.json())
+
+    async def top_tracks(self, *, limit: int = 10) -> list[Track]:
+        response = await self._api._client.get(
+            self._api._url("/tracks/top"),
+            params={"limit": limit},
+        )
+        response.raise_for_status()
+        return [Track.model_validate(t) for t in response.json()]
+
+
+# ---------------------------------------------------------------------------
+# public clients
+# ---------------------------------------------------------------------------
+
+
+class PlyrClient(_BaseClient):
+    """synchronous client for the plyr.fm API.
+
+    example:
+        client = PlyrClient()
+        tracks = client.tracks.list()
+        track = client.tracks.get(42)
+        track = client.tracks.get("at://did:plc:abc/fm.plyr.track/xyz")
+
+        client = PlyrClient(token="your_token")
+        client.tracks.like(42)
+        client.playlists.create("road trip")
+    """
+
+    def __init__(
+        self,
+        *,
+        token: str | None = None,
+        api_url: str | None = None,
+        settings: Settings | None = None,
+        timeout: float = 30.0,
+        user_agent: str | None = None,
+    ) -> None:
+        super().__init__(token=token, api_url=api_url, settings=settings)
+        headers = {"User-Agent": user_agent or _get_user_agent()}
+        self._client = httpx.Client(timeout=timeout, headers=headers)
+        self.tracks = TracksNamespace(self)
+        self.playlists = PlaylistsNamespace(self)
+        self.tags = TagsNamespace(self)
+        self.artists = ArtistsNamespace(self)
+        self.discover = DiscoverNamespace(self)
+
+    def __enter__(self) -> PlyrClient:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self._client.close()
+
+    def close(self) -> None:
+        self._client.close()
+
+    def me(self) -> dict[str, str]:
+        """get current user info. requires auth."""
+        response = self._client.get(
+            self._url("/auth/me"),
+            headers=self._auth_headers,
+        )
+        response.raise_for_status()
+        return response.json()
+
+
+class AsyncPlyrClient(_BaseClient):
+    """asynchronous client for the plyr.fm API.
+
+    example:
+        async with AsyncPlyrClient() as client:
+            tracks = await client.tracks.list()
+
+        async with AsyncPlyrClient(token="your_token") as client:
+            await client.tracks.like(42)
+            await client.playlists.create("road trip")
+    """
+
+    def __init__(
+        self,
+        *,
+        token: str | None = None,
+        api_url: str | None = None,
+        settings: Settings | None = None,
+        timeout: float = 30.0,
+        user_agent: str | None = None,
+    ) -> None:
+        super().__init__(token=token, api_url=api_url, settings=settings)
+        headers = {"User-Agent": user_agent or _get_user_agent()}
+        self._client = httpx.AsyncClient(timeout=timeout, headers=headers)
+        self.tracks = AsyncTracksNamespace(self)
+        self.playlists = AsyncPlaylistsNamespace(self)
+        self.tags = AsyncTagsNamespace(self)
+        self.artists = AsyncArtistsNamespace(self)
+        self.discover = AsyncDiscoverNamespace(self)
+
+    async def __aenter__(self) -> AsyncPlyrClient:
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        await self._client.aclose()
+
+    async def close(self) -> None:
+        await self._client.aclose()
+
+    async def me(self) -> dict[str, str]:
+        """get current user info. requires auth."""
+        response = await self._client.get(
+            self._url("/auth/me"),
+            headers=self._auth_headers,
+        )
+        response.raise_for_status()
+        return response.json()

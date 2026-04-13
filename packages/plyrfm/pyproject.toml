@@ -23,6 +23,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "cyclopts>=4.8.0",
     "httpx>=0.27",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.7.0",
