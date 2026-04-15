@@ -125,6 +125,7 @@ class Track(BaseModel):
     audio_url: str | None = Field(default=None, alias="r2_url")
     tags: list[str] = Field(default_factory=list)
     created_at: datetime | None = None
+    unlisted: bool = False
     atproto_uri: str | None = Field(default=None, alias="atproto_record_uri")
     atproto_cid: str | None = Field(default=None, alias="atproto_record_cid")
 
