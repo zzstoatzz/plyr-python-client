@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastmcp import FastMCP
-from plyrfm import Playlist, PlaylistWithTracks, Track
+from plyrfm import AudioRevision, Playlist, PlaylistWithTracks, Track
 from plyrfm._internal.types import PlaylistRecommendations, SearchResponse, Tag
 
 from plyrfm_mcp.client import get_plyr_client
@@ -179,6 +179,18 @@ async def liked_tracks(limit: int = 20) -> list[Track]:
     """list your liked tracks. requires auth."""
     async with get_plyr_client(require_auth=True) as client:
         return await client.tracks.liked(limit=limit)
+
+
+@mcp.tool
+@filterable
+async def list_revisions(track_id: int) -> list[AudioRevision]:
+    """list previous audio versions of a track (newest first). requires auth + ownership.
+
+    args:
+        track_id: plyr.fm track ID
+    """
+    async with get_plyr_client(require_auth=True) as client:
+        return await client.tracks.revisions(track_id)
 
 
 # -----------------------------------------------------------------------------
