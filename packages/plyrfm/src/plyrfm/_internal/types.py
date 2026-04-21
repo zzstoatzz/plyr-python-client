@@ -139,6 +139,19 @@ class UploadResult(BaseModel):
     title: str
 
 
+class AudioRevision(BaseModel):
+    """a previous audio version of a track."""
+
+    id: int
+    track_id: int
+    created_at: datetime
+    file_type: str
+    original_file_type: str | None = None
+    audio_storage: str  # "r2" | "pds" | "both"
+    duration: int | None = None
+    was_gated: bool
+
+
 # --- search types ---
 
 

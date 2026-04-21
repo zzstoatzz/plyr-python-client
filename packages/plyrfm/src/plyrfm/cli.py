@@ -232,6 +232,99 @@ def tracks_download(
     console.print(f"[green]saved:[/] {result} ({size_mb:.1f} MB)")
 
 
+@tracks_app.command(name="replace-audio")
+def tracks_replace_audio(ref: str, file: str) -> None:
+    """replace the audio file backing an existing track.
+
+    the track's id / URI / likes / plays / metadata all carry over;
+    only the audio bytes are replaced. previous audio is preserved as a revision.
+    """
+    client = _get_client(require_auth=True)
+    track_ref = _parse_track_ref(ref)
+    path = Path(file)
+    if not path.exists():
+        _error(f"file not found: {file}")
+
+    with console.status("replacing audio..."):
+        try:
+            result = client.tracks.replace_audio(track_ref, path)
+        except ValueError as e:
+            _error(str(e))
+        except httpx.HTTPStatusError as e:
+            _handle_http_error(e, "track")
+
+    console.print(f"[green]replaced audio:[/] track {result.track_id}")
+
+
+@tracks_app.command(name="revisions")
+def tracks_revisions(ref: str) -> None:
+    """list previous audio versions of a track (newest first)."""
+    client = _get_client(require_auth=True)
+    track_ref = _parse_track_ref(ref)
+
+    try:
+        revisions = client.tracks.revisions(track_ref)
+    except httpx.HTTPStatusError as e:
+        _handle_http_error(e, "track")
+
+    if not revisions:
+        console.print("no revisions found")
+        return
+
+    table = Table(title=f"audio revisions for track {ref}")
+    table.add_column("ID", style="cyan")
+    table.add_column("created_at")
+    table.add_column("format")
+    table.add_column("duration", justify="right")
+    table.add_column("storage")
+
+    for r in revisions:
+        duration = f"{r.duration}s" if r.duration is not None else "-"
+        table.add_row(
+            str(r.id),
+            r.created_at.isoformat(),
+            r.file_type,
+            duration,
+            r.audio_storage,
+        )
+
+    console.print(table)
+
+
+@tracks_app.command(name="restore-revision")
+def tracks_restore_revision(
+    ref: str,
+    revision_id: int,
+    *,
+    yes: Annotated[
+        bool, cyclopts.Parameter("--yes", alias="-y", help="skip confirmation")
+    ] = False,
+) -> None:
+    """restore a previous audio version of a track."""
+    client = _get_client(require_auth=True)
+    track_ref = _parse_track_ref(ref)
+
+    if not yes:
+        console.print(
+            f"restore revision {revision_id} on track {ref}? "
+            f"(current audio will be preserved as a new revision) [y/N] ",
+            end="",
+        )
+        if input().lower() != "y":
+            console.print("cancelled")
+            return
+
+    try:
+        new_rev = client.tracks.restore_revision(track_ref, revision_id)
+    except httpx.HTTPStatusError as e:
+        _handle_http_error(e, "track or revision")
+
+    console.print(
+        f"[green]restored[/] revision {revision_id}; "
+        f"previous audio saved as revision {new_rev.id}"
+    )
+
+
 @tracks_app.command(name="like")
 def tracks_like(ref: str) -> None:
     """like a track."""

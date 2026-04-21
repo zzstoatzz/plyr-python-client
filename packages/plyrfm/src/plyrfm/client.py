@@ -13,6 +13,7 @@ from plyrfm._internal.types import (
     ArtistDid,
     ArtistProfile,
     ArtistProfilePatch,
+    AudioRevision,
     Playlist,
     PlaylistId,
     PlaylistRecommendations,
@@ -210,6 +211,83 @@ class TracksNamespace(_SyncNamespace):
             raise ValueError(msg)
 
         return self._poll_upload(upload_id, title, timeout=timeout)
+
+    def replace_audio(
+        self,
+        track: TrackRef,
+        file: Path | str,
+        *,
+        timeout: float = 300.0,
+    ) -> UploadResult:
+        """replace the audio file backing an existing track. requires auth + ownership.
+
+        this uploads new audio bytes. the track's stable id / URI / likes / comments
+        / plays / album linkage all carry over; only the audio (and derived fields
+        like duration / fingerprint / embedding) are replaced. the previous audio
+        is preserved as a revision — use `.revisions(track)` to list them or
+        `.restore_revision(track, revision_id)` to roll back.
+        """
+        track_id = self._resolve_id(track)
+        file = Path(file)
+        if not file.exists():
+            msg = f"file not found: {file}"
+            raise FileNotFoundError(msg)
+
+        with open(file, "rb") as f:
+            files = {"file": (file.name, f)}
+            response = self._api._client.put(
+                self._api._url(f"/tracks/{track_id}/audio"),
+                headers=self._api._auth_headers,
+                files=files,
+                timeout=timeout,
+            )
+
+        self._api._handle_error_response(response)
+        upload_data = response.json()
+
+        # resolve title for the result label
+        title = upload_data.get("title") or ""
+        if not title:
+            try:
+                title = self.get(track_id).title
+            except Exception:
+                title = ""
+
+        if (completed_track_id := upload_data.get("track_id")) and upload_data.get(
+            "status"
+        ) in (None, "completed"):
+            return UploadResult(track_id=completed_track_id, title=title)
+
+        upload_id = upload_data.get("upload_id")
+        if not upload_id:
+            msg = "unexpected response: no upload_id"
+            raise ValueError(msg)
+
+        return self._poll_upload(upload_id, title, timeout=timeout)
+
+    def revisions(self, track: TrackRef) -> list[AudioRevision]:
+        """list previous audio versions of a track, newest first. requires auth + ownership."""
+        track_id = self._resolve_id(track)
+        response = self._api._client.get(
+            self._api._url(f"/tracks/{track_id}/revisions"),
+            headers=self._api._auth_headers,
+        )
+        self._api._handle_error_response(response)
+        data = response.json()
+        return [AudioRevision.model_validate(r) for r in data.get("revisions", [])]
+
+    def restore_revision(self, track: TrackRef, revision_id: int) -> AudioRevision:
+        """restore a previous audio version (owner only).
+
+        returns the new revision row that captured the just-displaced current audio.
+        """
+        track_id = self._resolve_id(track)
+        response = self._api._client.post(
+            self._api._url(f"/tracks/{track_id}/revisions/{revision_id}/restore"),
+            headers=self._api._auth_headers,
+        )
+        self._api._handle_error_response(response)
+        return AudioRevision.model_validate(response.json())
 
     def update(self, track: TrackRef, patch: TrackPatch) -> Track:
         """update track metadata. requires auth + ownership."""
@@ -619,6 +697,84 @@ class AsyncTracksNamespace(_AsyncNamespace):
             raise ValueError(msg)
 
         return await self._poll_upload(upload_id, title, timeout=timeout)
+
+    async def replace_audio(
+        self,
+        track: TrackRef,
+        file: Path | str,
+        *,
+        timeout: float = 300.0,
+    ) -> UploadResult:
+        """replace the audio file backing an existing track. requires auth + ownership.
+
+        this uploads new audio bytes. the track's stable id / URI / likes / comments
+        / plays / album linkage all carry over; only the audio (and derived fields
+        like duration / fingerprint / embedding) are replaced. the previous audio
+        is preserved as a revision — use `.revisions(track)` to list them or
+        `.restore_revision(track, revision_id)` to roll back.
+        """
+        track_id = await self._resolve_id(track)
+        file = Path(file)
+        if not file.exists():
+            msg = f"file not found: {file}"
+            raise FileNotFoundError(msg)
+
+        with open(file, "rb") as f:
+            files = {"file": (file.name, f)}
+            response = await self._api._client.put(
+                self._api._url(f"/tracks/{track_id}/audio"),
+                headers=self._api._auth_headers,
+                files=files,
+                timeout=timeout,
+            )
+
+        self._api._handle_error_response(response)
+        upload_data = response.json()
+
+        title = upload_data.get("title") or ""
+        if not title:
+            try:
+                title = (await self.get(track_id)).title
+            except Exception:
+                title = ""
+
+        if (completed_track_id := upload_data.get("track_id")) and upload_data.get(
+            "status"
+        ) in (None, "completed"):
+            return UploadResult(track_id=completed_track_id, title=title)
+
+        upload_id = upload_data.get("upload_id")
+        if not upload_id:
+            msg = "unexpected response: no upload_id"
+            raise ValueError(msg)
+
+        return await self._poll_upload(upload_id, title, timeout=timeout)
+
+    async def revisions(self, track: TrackRef) -> list[AudioRevision]:
+        """list previous audio versions of a track, newest first. requires auth + ownership."""
+        track_id = await self._resolve_id(track)
+        response = await self._api._client.get(
+            self._api._url(f"/tracks/{track_id}/revisions"),
+            headers=self._api._auth_headers,
+        )
+        self._api._handle_error_response(response)
+        data = response.json()
+        return [AudioRevision.model_validate(r) for r in data.get("revisions", [])]
+
+    async def restore_revision(
+        self, track: TrackRef, revision_id: int
+    ) -> AudioRevision:
+        """restore a previous audio version (owner only).
+
+        returns the new revision row that captured the just-displaced current audio.
+        """
+        track_id = await self._resolve_id(track)
+        response = await self._api._client.post(
+            self._api._url(f"/tracks/{track_id}/revisions/{revision_id}/restore"),
+            headers=self._api._auth_headers,
+        )
+        self._api._handle_error_response(response)
+        return AudioRevision.model_validate(response.json())
 
     async def update(self, track: TrackRef, patch: TrackPatch) -> Track:
         track_id = await self._resolve_id(track)
