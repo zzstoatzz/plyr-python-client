@@ -133,6 +133,16 @@ def tracks_upload(
         list[str] | None,
         cyclopts.Parameter("--tag", alias="-t", help="tag (repeatable)"),
     ] = None,
+    description: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--description", help="track description (liner notes, show notes, etc.)"
+        ),
+    ] = None,
+    image: Annotated[
+        str | None,
+        cyclopts.Parameter("--image", help="path to cover art image (jpg/png/webp)"),
+    ] = None,
     unlisted: Annotated[
         bool,
         cyclopts.Parameter(
@@ -148,11 +158,23 @@ def tracks_upload(
     if not path.exists():
         _error(f"file not found: {file}")
 
+    image_path: Path | None = None
+    if image is not None:
+        image_path = Path(image)
+        if not image_path.exists():
+            _error(f"image not found: {image}")
+
     tags = set(tag) if tag else None
     with console.status("uploading..."):
         try:
             result = client.tracks.upload(
-                path, title, album=album, tags=tags, unlisted=unlisted
+                path,
+                title,
+                album=album,
+                tags=tags,
+                description=description,
+                image=image_path,
+                unlisted=unlisted,
             )
         except ValueError as e:
             _error(str(e))

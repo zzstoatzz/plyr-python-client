@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 from importlib.metadata import version
 from pathlib import Path
@@ -175,6 +176,8 @@ class TracksNamespace(_SyncNamespace):
         *,
         album: str | None = None,
         tags: set[str] | None = None,
+        description: str | None = None,
+        image: Path | str | None = None,
         unlisted: bool = False,
         timeout: float = 300.0,
     ) -> UploadResult:
@@ -182,19 +185,34 @@ class TracksNamespace(_SyncNamespace):
 
         when `unlisted=True`, the track is excluded from public discovery
         feeds (latest, top, for-you) but remains accessible by direct URL.
+        when `image` is provided, the file becomes the track's cover art.
         """
         file = Path(file)
         if not file.exists():
             msg = f"file not found: {file}"
             raise FileNotFoundError(msg)
 
-        with open(file, "rb") as f:
-            files = {"file": (file.name, f)}
+        image_path: Path | None = None
+        if image is not None:
+            image_path = Path(image)
+            if not image_path.exists():
+                msg = f"image not found: {image_path}"
+                raise FileNotFoundError(msg)
+
+        with contextlib.ExitStack() as stack:
+            f = stack.enter_context(open(file, "rb"))
+            files: dict[str, tuple[str, object]] = {"file": (file.name, f)}
+            if image_path is not None:
+                img = stack.enter_context(open(image_path, "rb"))
+                files["image"] = (image_path.name, img)
+
             data: dict[str, str] = {"title": title}
             if album:
                 data["album"] = album
             if tags:
                 data["tags"] = json.dumps(list(tags))
+            if description:
+                data["description"] = description
             if unlisted:
                 data["unlisted"] = "true"
 
@@ -669,6 +687,8 @@ class AsyncTracksNamespace(_AsyncNamespace):
         *,
         album: str | None = None,
         tags: set[str] | None = None,
+        description: str | None = None,
+        image: Path | str | None = None,
         unlisted: bool = False,
         timeout: float = 300.0,
     ) -> UploadResult:
@@ -676,19 +696,34 @@ class AsyncTracksNamespace(_AsyncNamespace):
 
         when `unlisted=True`, the track is excluded from public discovery
         feeds (latest, top, for-you) but remains accessible by direct URL.
+        when `image` is provided, the file becomes the track's cover art.
         """
         file = Path(file)
         if not file.exists():
             msg = f"file not found: {file}"
             raise FileNotFoundError(msg)
 
-        with open(file, "rb") as f:
-            files = {"file": (file.name, f)}
+        image_path: Path | None = None
+        if image is not None:
+            image_path = Path(image)
+            if not image_path.exists():
+                msg = f"image not found: {image_path}"
+                raise FileNotFoundError(msg)
+
+        with contextlib.ExitStack() as stack:
+            f = stack.enter_context(open(file, "rb"))
+            files: dict[str, tuple[str, object]] = {"file": (file.name, f)}
+            if image_path is not None:
+                img = stack.enter_context(open(image_path, "rb"))
+                files["image"] = (image_path.name, img)
+
             data: dict[str, str] = {"title": title}
             if album:
                 data["album"] = album
             if tags:
                 data["tags"] = json.dumps(list(tags))
+            if description:
+                data["description"] = description
             if unlisted:
                 data["unlisted"] = "true"
 
