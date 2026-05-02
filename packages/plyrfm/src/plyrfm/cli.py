@@ -133,6 +133,14 @@ def tracks_upload(
         list[str] | None,
         cyclopts.Parameter("--tag", alias="-t", help="tag (repeatable)"),
     ] = None,
+    unlisted: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--unlisted",
+            help="exclude from public discovery feeds (latest, top, for-you); accessible by direct URL",
+            negative=(),
+        ),
+    ] = False,
 ) -> None:
     """upload a track."""
     client = _get_client(require_auth=True)
@@ -143,7 +151,9 @@ def tracks_upload(
     tags = set(tag) if tag else None
     with console.status("uploading..."):
         try:
-            result = client.tracks.upload(path, title, album=album, tags=tags)
+            result = client.tracks.upload(
+                path, title, album=album, tags=tags, unlisted=unlisted
+            )
         except ValueError as e:
             _error(str(e))
         except httpx.HTTPStatusError as e:

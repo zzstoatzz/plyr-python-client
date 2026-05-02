@@ -175,9 +175,14 @@ class TracksNamespace(_SyncNamespace):
         *,
         album: str | None = None,
         tags: set[str] | None = None,
+        unlisted: bool = False,
         timeout: float = 300.0,
     ) -> UploadResult:
-        """upload a track. requires auth + artist profile."""
+        """upload a track. requires auth + artist profile.
+
+        when `unlisted=True`, the track is excluded from public discovery
+        feeds (latest, top, for-you) but remains accessible by direct URL.
+        """
         file = Path(file)
         if not file.exists():
             msg = f"file not found: {file}"
@@ -190,6 +195,8 @@ class TracksNamespace(_SyncNamespace):
                 data["album"] = album
             if tags:
                 data["tags"] = json.dumps(list(tags))
+            if unlisted:
+                data["unlisted"] = "true"
 
             response = self._api._client.post(
                 self._api._url("/tracks/"),
@@ -662,8 +669,14 @@ class AsyncTracksNamespace(_AsyncNamespace):
         *,
         album: str | None = None,
         tags: set[str] | None = None,
+        unlisted: bool = False,
         timeout: float = 300.0,
     ) -> UploadResult:
+        """upload a track. requires auth + artist profile.
+
+        when `unlisted=True`, the track is excluded from public discovery
+        feeds (latest, top, for-you) but remains accessible by direct URL.
+        """
         file = Path(file)
         if not file.exists():
             msg = f"file not found: {file}"
@@ -676,6 +689,8 @@ class AsyncTracksNamespace(_AsyncNamespace):
                 data["album"] = album
             if tags:
                 data["tags"] = json.dumps(list(tags))
+            if unlisted:
+                data["unlisted"] = "true"
 
             response = await self._api._client.post(
                 self._api._url("/tracks/"),

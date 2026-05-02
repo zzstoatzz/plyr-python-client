@@ -48,6 +48,9 @@ plyrfm tracks upload track.mp3 "Song Title" --album "Album Name"
 
 # upload with tags (can use -t multiple times)
 plyrfm tracks upload track.mp3 "Song Title" -t electronic -t ambient
+
+# upload as unlisted (excluded from discovery feeds, accessible by direct URL)
+plyrfm tracks upload track.mp3 "Song Title" --unlisted
 ```
 
 ## supported formats
