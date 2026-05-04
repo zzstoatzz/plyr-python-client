@@ -175,6 +175,7 @@ class TracksNamespace(_SyncNamespace):
         *,
         album: str | None = None,
         tags: set[str] | None = None,
+        unlisted: bool = False,
         timeout: float = 300.0,
     ) -> UploadResult:
         """upload a track. requires auth + artist profile."""
@@ -190,6 +191,8 @@ class TracksNamespace(_SyncNamespace):
                 data["album"] = album
             if tags:
                 data["tags"] = json.dumps(list(tags))
+            if unlisted:
+                data["unlisted"] = "true"
 
             response = self._api._client.post(
                 self._api._url("/tracks/"),
@@ -301,6 +304,8 @@ class TracksNamespace(_SyncNamespace):
             data["features"] = patch.features
         if patch.tags is not None:
             data["tags"] = json.dumps(patch.tags)
+        if patch.unlisted is not None:
+            data["unlisted"] = "true" if patch.unlisted else "false"
 
         if patch.image is not None:
             image_path = Path(patch.image)
@@ -662,6 +667,7 @@ class AsyncTracksNamespace(_AsyncNamespace):
         *,
         album: str | None = None,
         tags: set[str] | None = None,
+        unlisted: bool = False,
         timeout: float = 300.0,
     ) -> UploadResult:
         file = Path(file)
@@ -676,6 +682,8 @@ class AsyncTracksNamespace(_AsyncNamespace):
                 data["album"] = album
             if tags:
                 data["tags"] = json.dumps(list(tags))
+            if unlisted:
+                data["unlisted"] = "true"
 
             response = await self._api._client.post(
                 self._api._url("/tracks/"),
@@ -787,6 +795,8 @@ class AsyncTracksNamespace(_AsyncNamespace):
             data["features"] = patch.features
         if patch.tags is not None:
             data["tags"] = json.dumps(patch.tags)
+        if patch.unlisted is not None:
+            data["unlisted"] = "true" if patch.unlisted else "false"
 
         if patch.image is not None:
             image_path = Path(patch.image)

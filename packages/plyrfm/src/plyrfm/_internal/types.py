@@ -46,6 +46,7 @@ class TrackPatch(BaseModel):
     features: str | None = None
     tags: list[str] | None = None
     image: Path | str | None = None
+    unlisted: bool | None = None
 
     model_config = {"extra": "forbid"}
 

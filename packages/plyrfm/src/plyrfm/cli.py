@@ -133,6 +133,12 @@ def tracks_upload(
         list[str] | None,
         cyclopts.Parameter("--tag", alias="-t", help="tag (repeatable)"),
     ] = None,
+    unlisted: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--unlisted", help="exclude track from public discovery feeds"
+        ),
+    ] = False,
 ) -> None:
     """upload a track."""
     client = _get_client(require_auth=True)
@@ -143,7 +149,9 @@ def tracks_upload(
     tags = set(tag) if tag else None
     with console.status("uploading..."):
         try:
-            result = client.tracks.upload(path, title, album=album, tags=tags)
+            result = client.tracks.upload(
+                path, title, album=album, tags=tags, unlisted=unlisted
+            )
         except ValueError as e:
             _error(str(e))
         except httpx.HTTPStatusError as e:
@@ -161,12 +169,20 @@ def tracks_update(
     tags: Annotated[
         str | None, cyclopts.Parameter("--tags", help="comma-separated tags")
     ] = None,
+    unlisted: Annotated[
+        bool | None,
+        cyclopts.Parameter(
+            "--unlisted",
+            help="hide from public discovery (--unlisted to set, --no-unlisted to clear)",
+            negative="--no-unlisted",
+        ),
+    ] = None,
 ) -> None:
     """update track metadata."""
     client = _get_client(require_auth=True)
     track_ref = _parse_track_ref(ref)
     tag_list = [t.strip() for t in tags.split(",")] if tags else None
-    patch = TrackPatch(title=title, album=album, tags=tag_list)
+    patch = TrackPatch(title=title, album=album, tags=tag_list, unlisted=unlisted)
 
     try:
         track = client.tracks.update(track_ref, patch)
