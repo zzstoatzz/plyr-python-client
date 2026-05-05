@@ -24,7 +24,6 @@ classifiers = [
 dependencies = [
     "plyrfm=={{ version }}",
     "fastmcp>=2.0",
-    "jmespath>=1.0",
 ]
 
 [project.scripts]
