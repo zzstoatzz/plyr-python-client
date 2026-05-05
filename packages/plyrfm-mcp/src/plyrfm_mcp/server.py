@@ -7,7 +7,6 @@ from plyrfm import AudioRevision, Playlist, PlaylistWithTracks, Track
 from plyrfm._internal.types import PlaylistRecommendations, SearchResponse, Tag
 
 from plyrfm_mcp.client import get_plyr_client
-from plyrfm_mcp.filterable import filterable
 from plyrfm_mcp.middleware import PlyrAuthMiddleware
 
 mcp = FastMCP("plyr.fm")
@@ -107,7 +106,6 @@ path = client.tracks.download(42, output="~/Music/song.mp3")
 
 
 @mcp.tool
-@filterable
 async def list_tracks(limit: int = 20) -> list[Track]:
     """list public tracks on plyr.fm. no auth required."""
     async with get_plyr_client() as client:
@@ -122,7 +120,6 @@ async def get_track(track_id: int) -> Track:
 
 
 @mcp.tool
-@filterable
 async def my_tracks(limit: int = 20) -> list[Track]:
     """list your own tracks. requires auth (PLYR_TOKEN or x-plyr-token header)."""
     async with get_plyr_client(require_auth=True) as client:
@@ -145,7 +142,6 @@ async def search(
 
 
 @mcp.tool
-@filterable
 async def top_tracks(limit: int = 10) -> list[Track]:
     """get top tracks by like count. no auth required."""
     async with get_plyr_client() as client:
@@ -153,7 +149,6 @@ async def top_tracks(limit: int = 10) -> list[Track]:
 
 
 @mcp.tool
-@filterable
 async def list_tags(q: str | None = None, limit: int = 20) -> list[Tag]:
     """list tags with track counts. no auth required.
 
@@ -166,7 +161,6 @@ async def list_tags(q: str | None = None, limit: int = 20) -> list[Tag]:
 
 
 @mcp.tool
-@filterable
 async def tracks_by_tag(tag: str, limit: int = 50) -> list[Track]:
     """get tracks with a specific tag. no auth required."""
     async with get_plyr_client() as client:
@@ -174,7 +168,6 @@ async def tracks_by_tag(tag: str, limit: int = 50) -> list[Track]:
 
 
 @mcp.tool
-@filterable
 async def liked_tracks(limit: int = 20) -> list[Track]:
     """list your liked tracks. requires auth."""
     async with get_plyr_client(require_auth=True) as client:
@@ -182,7 +175,6 @@ async def liked_tracks(limit: int = 20) -> list[Track]:
 
 
 @mcp.tool
-@filterable
 async def list_revisions(track_id: int) -> list[AudioRevision]:
     """list previous audio versions of a track (newest first). requires auth + ownership.
 
@@ -199,7 +191,6 @@ async def list_revisions(track_id: int) -> list[AudioRevision]:
 
 
 @mcp.tool
-@filterable
 async def list_playlists() -> list[Playlist]:
     """list your playlists. requires auth."""
     async with get_plyr_client(require_auth=True) as client:
@@ -214,7 +205,6 @@ async def get_playlist(playlist_id: str) -> PlaylistWithTracks:
 
 
 @mcp.tool
-@filterable
 async def playlists_by_artist(artist_did: str) -> list[Playlist]:
     """list public playlists by an artist. no auth required.
 

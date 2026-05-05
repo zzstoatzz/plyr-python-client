@@ -38,23 +38,6 @@ this server is **read-only** by design. use the `plyrfm` CLI for mutations (uplo
 - `my_tracks` - list your tracks
 - `liked_tracks` - list your liked tracks
 
-tools that return lists support `_filter` for jmespath filtering.
-
-## filtering
-
-tools that return lists support a `_filter` parameter for jmespath expressions:
-
-```
-# select specific fields
-list_tracks(_filter="[*].{id: id, title: title}")
-
-# filter by condition
-list_tracks(_filter="[?play_count > `50`]")
-
-# extract values
-list_tracks(_filter="[*].title")
-```
-
 ## auth
 
 get a developer token at [plyr.fm/portal](https://plyr.fm/portal) -> "developer tokens"
