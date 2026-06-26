@@ -47,6 +47,8 @@ class TrackPatch(BaseModel):
     tags: list[str] | None = None
     image: Path | str | None = None
     unlisted: bool | None = None
+    # liner notes / show notes. "" clears the existing description.
+    description: str | None = None
 
     model_config = {"extra": "forbid"}
 
@@ -115,6 +117,7 @@ class Track(BaseModel):
 
     id: int
     title: str
+    description: str | None = None  # liner notes / show notes
     file_id: str
     file_type: str = "mp3"
     artist: str = ""  # display name or handle

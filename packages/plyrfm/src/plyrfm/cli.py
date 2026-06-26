@@ -139,6 +139,12 @@ def tracks_upload(
             "--unlisted", help="exclude track from public discovery feeds"
         ),
     ] = False,
+    description: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--description", help="track description (liner notes, show notes)"
+        ),
+    ] = None,
 ) -> None:
     """upload a track."""
     client = _get_client(require_auth=True)
@@ -150,7 +156,12 @@ def tracks_upload(
     with console.status("uploading..."):
         try:
             result = client.tracks.upload(
-                path, title, album=album, tags=tags, unlisted=unlisted
+                path,
+                title,
+                album=album,
+                tags=tags,
+                unlisted=unlisted,
+                description=description,
             )
         except ValueError as e:
             _error(str(e))
@@ -177,12 +188,25 @@ def tracks_update(
             negative="--no-unlisted",
         ),
     ] = None,
+    description: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--description",
+            help="track description (liner notes, show notes); pass '' to clear",
+        ),
+    ] = None,
 ) -> None:
     """update track metadata."""
     client = _get_client(require_auth=True)
     track_ref = _parse_track_ref(ref)
     tag_list = [t.strip() for t in tags.split(",")] if tags else None
-    patch = TrackPatch(title=title, album=album, tags=tag_list, unlisted=unlisted)
+    patch = TrackPatch(
+        title=title,
+        album=album,
+        tags=tag_list,
+        unlisted=unlisted,
+        description=description,
+    )
 
     try:
         track = client.tracks.update(track_ref, patch)
