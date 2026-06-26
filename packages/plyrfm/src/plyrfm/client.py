@@ -176,6 +176,7 @@ class TracksNamespace(_SyncNamespace):
         album: str | None = None,
         tags: set[str] | None = None,
         unlisted: bool = False,
+        description: str | None = None,
         timeout: float = 300.0,
     ) -> UploadResult:
         """upload a track. requires auth + artist profile."""
@@ -193,6 +194,8 @@ class TracksNamespace(_SyncNamespace):
                 data["tags"] = json.dumps(list(tags))
             if unlisted:
                 data["unlisted"] = "true"
+            if description is not None:
+                data["description"] = description
 
             response = self._api._client.post(
                 self._api._url("/tracks/"),
@@ -306,6 +309,8 @@ class TracksNamespace(_SyncNamespace):
             data["tags"] = json.dumps(patch.tags)
         if patch.unlisted is not None:
             data["unlisted"] = "true" if patch.unlisted else "false"
+        if patch.description is not None:
+            data["description"] = patch.description
 
         if patch.image is not None:
             image_path = Path(patch.image)
@@ -668,6 +673,7 @@ class AsyncTracksNamespace(_AsyncNamespace):
         album: str | None = None,
         tags: set[str] | None = None,
         unlisted: bool = False,
+        description: str | None = None,
         timeout: float = 300.0,
     ) -> UploadResult:
         file = Path(file)
@@ -684,6 +690,8 @@ class AsyncTracksNamespace(_AsyncNamespace):
                 data["tags"] = json.dumps(list(tags))
             if unlisted:
                 data["unlisted"] = "true"
+            if description is not None:
+                data["description"] = description
 
             response = await self._api._client.post(
                 self._api._url("/tracks/"),
@@ -797,6 +805,8 @@ class AsyncTracksNamespace(_AsyncNamespace):
             data["tags"] = json.dumps(patch.tags)
         if patch.unlisted is not None:
             data["unlisted"] = "true" if patch.unlisted else "false"
+        if patch.description is not None:
+            data["description"] = patch.description
 
         if patch.image is not None:
             image_path = Path(patch.image)
