@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Literal, TypeAlias
+from typing import Annotated, Any, Literal, TypeAlias
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -130,6 +130,13 @@ class Track(BaseModel):
     tags: list[str] = Field(default_factory=list)
     created_at: datetime | None = None
     unlisted: bool = False
+    visibility: str = "public"  # public | unlisted | supporters | private
+    support_gate: dict[str, Any] | None = None  # supporter gating config
+    gated: bool = False  # gated AND the viewer lacks access
+    audio_storage: str = "r2"  # "r2" | "pds" | "both"
+    pds_blob_cid: str | None = None  # CID when audio lives on the user's PDS
+    original_file_id: str | None = None  # pre-transcode source hash
+    original_file_type: str | None = None  # pre-transcode source extension
     atproto_uri: str | None = Field(default=None, alias="atproto_record_uri")
     atproto_cid: str | None = Field(default=None, alias="atproto_record_cid")
 
