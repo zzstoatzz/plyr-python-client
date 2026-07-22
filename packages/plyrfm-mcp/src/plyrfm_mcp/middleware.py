@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import mcp.types as mt
+import mcp_types as mt
 from fastmcp.server.dependencies import get_http_headers
 from fastmcp.server.middleware import CallNext, Middleware, MiddlewareContext
 

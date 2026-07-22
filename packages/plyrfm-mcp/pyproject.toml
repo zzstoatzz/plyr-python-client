@@ -23,7 +23,7 @@ classifiers = [
 [tool.hatch.metadata.hooks.uv-dynamic-versioning]
 dependencies = [
     "plyrfm=={{ version }}",
-    "fastmcp>=2.0",
+    "fastmcp==4.0.0a1",
 ]
 
 [project.scripts]
