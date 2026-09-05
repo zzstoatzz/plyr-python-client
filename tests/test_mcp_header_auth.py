@@ -56,6 +56,8 @@ async def test_http_call_uses_current_header_and_never_server_token(
         http_request(monkeypatch, None)
         result = await client.call_tool("my_tracks", {}, raise_on_error=False)
         assert result.is_error
+        assert "x-plyr-token header" in result.content[0].text
+        assert "PLYR_TOKEN" not in result.content[0].text
         assert len(requests) == 2
         await client.call_tool("list_tracks", {})
         assert "authorization" not in requests[-1].headers
@@ -65,6 +67,19 @@ async def test_stdio_uses_local_credentials(requests: list[httpx.Request]) -> No
     async with Client(mcp) as client:
         await client.call_tool("my_tracks", {})
     assert requests[-1].headers["authorization"] == "Bearer server-token-must-not-leak"
+
+
+async def test_stdio_missing_token_explains_local_setup(
+    monkeypatch: pytest.MonkeyPatch, requests: list[httpx.Request]
+) -> None:
+    monkeypatch.delenv("PLYR_TOKEN")
+    get_settings.cache_clear()
+    async with Client(mcp) as client:
+        result = await client.call_tool("my_tracks", {}, raise_on_error=False)
+    assert result.is_error
+    assert "PLYR_TOKEN" in result.content[0].text
+    assert "x-plyr-token" not in result.content[0].text
+    assert not requests
 
 
 async def test_identity_resource_uses_http_credentials(
