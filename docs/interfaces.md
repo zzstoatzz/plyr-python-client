@@ -6,7 +6,7 @@ they have deliberately different jobs.
 | use case | start here | why |
 | --- | --- | --- |
 | ask an assistant to find audio or inspect a library | hosted MCP, `https://plyrfm.fastmcp.app/mcp` | bounded read tools, input constraints, explicit access and playback limits |
-| run those tools locally with your own environment | `uvx plyrfm-mcp` | same MCP, local stdio credentials and API URL |
+| run those tools locally with your own environment | `uvx --prerelease=allow plyrfm-mcp` | same MCP, local stdio credentials and API URL |
 | work in a terminal, upload, edit, or manage tracks | `uvx plyrfm --help` | readable output and explicit commands; no agent required |
 | compose an application or repeatable Python workflow | `PlyrClient` / `AsyncPlyrClient` | typed results, full control over composition, sync and async parity |
 | use another language, inspect precise schemas, or use API-only features | `https://api.plyr.fm/openapi.json` | complete HTTP surface, including features not yet wrapped by the SDK |

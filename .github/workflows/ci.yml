@@ -75,6 +75,14 @@ jobs:
       - name: Run tests
         run: uv run pytest tests -v
 
+      - name: Install built packages outside the workspace
+        run: |
+          uv build --wheel --package plyrfm --out-dir wheel-check
+          uv build --wheel --package plyrfm-mcp --out-dir wheel-check
+          wheels=("$PWD"/wheel-check/*.whl)
+          cd /tmp
+          uv run --no-project --prerelease=allow --with "${wheels[0]}" --with "${wheels[1]}" python -c 'from plyrfm import PlyrClient; from plyrfm_mcp.server import mcp; assert mcp.name == "plyr.fm"'
+
   api-compatibility:
     name: Current backend compatibility
     runs-on: ubuntu-latest
