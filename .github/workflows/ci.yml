@@ -65,5 +65,31 @@ jobs:
       - name: Install workspace packages
         run: uv sync --all-packages
 
+      - name: Check interface contracts
+        run: |
+          uv run pytest tests/test_client_parity.py tests/test_surface_inventory.py tests/test_read_parity.py tests/test_mcp_header_auth.py tests/test_api_contract.py tests/test_download_policy.py tests/test_doc_examples.py tests/test_write_parity.py -q
+          uv run python scripts/check_api_contract.py
+          uv run python scripts/render_surfaces.py --check
+          uv run python scripts/check_doc_examples.py README.md packages/plyrfm/README.md packages/plyrfm-mcp/README.md
+
       - name: Run tests
         run: uv run pytest tests -v
+
+  api-compatibility:
+    name: Current backend compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: zzstoatzz/plyr.fm
+          path: .api-source
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v7
+      - name: Export backend contract without starting services
+        env:
+          OAUTH_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+        run: uv run --directory .api-source/backend python ../../scripts/export_api.py /tmp/plyr-openapi.json
+      - name: Check SDK against current backend
+        run: uv run python scripts/check_api_contract.py --schema /tmp/plyr-openapi.json

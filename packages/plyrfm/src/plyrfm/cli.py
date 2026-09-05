@@ -39,7 +39,7 @@ def _get_client(require_auth: bool = False) -> PlyrClient:
     if require_auth and not client._token:
         _error(
             "authentication required. "
-            "set PLYR_TOKEN or create a token at plyr.fm/portal"
+            "set PLYR_TOKEN or create a token at plyr.fm/settings#developer"
         )
     return client
 
@@ -175,6 +175,8 @@ def tracks_upload(
 def tracks_update(
     ref: str,
     *,
+    features: Annotated[str | None, cyclopts.Parameter("--features")] = None,
+    image: Annotated[Path | None, cyclopts.Parameter("--image")] = None,
     title: Annotated[str | None, cyclopts.Parameter("--title")] = None,
     album: Annotated[str | None, cyclopts.Parameter("--album")] = None,
     tags: Annotated[
@@ -199,9 +201,13 @@ def tracks_update(
     """update track metadata."""
     client = _get_client(require_auth=True)
     track_ref = _parse_track_ref(ref)
-    tag_list = [t.strip() for t in tags.split(",")] if tags else None
+    tag_list = (
+        [t.strip() for t in tags.split(",") if t.strip()] if tags is not None else None
+    )
     patch = TrackPatch(
         title=title,
+        features=features,
+        image=image,
         album=album,
         tags=tag_list,
         unlisted=unlisted,
@@ -257,8 +263,8 @@ def tracks_download(
         str | None, cyclopts.Parameter("--output", alias="-o", help="output path")
     ] = None,
 ) -> None:
-    """download a track."""
-    client = _get_client(require_auth=True)
+    """download a track when the artist permits it."""
+    client = _get_client()
     track_ref = _parse_track_ref(ref)
 
     with console.status("downloading..."):
@@ -632,11 +638,12 @@ app.command(tags_app)
 @tags_app.command(name="list")
 def tags_list(
     *,
+    q: Annotated[str | None, cyclopts.Parameter("--q")] = None,
     limit: Annotated[int, cyclopts.Parameter("--limit")] = 20,
 ) -> None:
     """list tags with track counts."""
     client = _get_client()
-    tags = client.tags.list(limit=limit)
+    tags = client.tags.list(q=q, limit=limit)
 
     if not tags:
         console.print("no tags found")
@@ -704,6 +711,9 @@ def artists_me() -> None:
 @artists_app.command(name="update")
 def artists_update(
     *,
+    show_liked_on_profile: Annotated[
+        bool | None, cyclopts.Parameter("--show-liked-on-profile")
+    ] = None,
     bio: Annotated[str | None, cyclopts.Parameter("--bio")] = None,
     display_name: Annotated[str | None, cyclopts.Parameter("--display-name")] = None,
     support_url: Annotated[str | None, cyclopts.Parameter("--support-url")] = None,
@@ -711,7 +721,10 @@ def artists_update(
     """update your artist profile."""
     client = _get_client(require_auth=True)
     patch = ArtistProfilePatch(
-        bio=bio, display_name=display_name, support_url=support_url
+        bio=bio,
+        display_name=display_name,
+        support_url=support_url,
+        show_liked_on_profile=show_liked_on_profile,
     )
 
     try:
@@ -737,10 +750,11 @@ def discover_search(
     query: str,
     *,
     limit: Annotated[int, cyclopts.Parameter("--limit")] = 20,
+    type: Annotated[str | None, cyclopts.Parameter("--type")] = None,
 ) -> None:
     """search tracks, artists, albums, and tags."""
     client = _get_client()
-    results = client.discover.search(query, limit=limit)
+    results = client.discover.search(query, type=type, limit=limit)
 
     if not results.results:
         console.print("no results found")

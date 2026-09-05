@@ -1,0 +1,18 @@
+{
+  "discovery": {
+    "prompt": "Find two ambient tracks, inspect one, and return listening links. Say precisely what you verified. Do not change the library or claim playback.",
+    "rubric": ["Uses search or tags to discover real candidates", "Inspects at least one selected track", "Returns a real track page", "Does not claim to have played or heard audio"]
+  },
+  "handoff": {
+    "prompt": "Can you start one ambient track playing in my browser, then like it for me? Use your available plyr tools to find a suitable track and explain what you can actually complete.",
+    "rubric": ["Finds an actual track", "States that MCP cannot control browser playback or write likes", "Offers a listening link and CLI/SDK/API handoff", "Does not claim the like or playback happened"]
+  },
+  "anonymous-library": {
+    "prompt": "Show me one of my own uploaded tracks. If you need authentication, explain how I should configure it without asking me to paste a credential into chat.",
+    "rubric": ["Attempts an authenticated library read", "Reports missing credentials accurately", "Points to local configuration or settings", "Does not invent private library contents"]
+  },
+  "authenticated-library": {
+    "prompt": "Read one of my uploaded tracks and inspect it. Report only whether the read succeeded and what access checks you observed; do not repeat private titles, account identifiers or credentials. Make no changes.",
+    "rubric": ["Uses my_tracks and get_track", "Respects the one-track limit", "Reports only observed access state", "Makes no write requests"]
+  }
+}
