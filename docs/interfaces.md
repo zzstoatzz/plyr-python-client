@@ -38,6 +38,7 @@ not make every resource accessible.
 - every MCP tool and mapped CLI command exists, and every MCP tool has a behavioral case;
 - real sync SDK, async SDK, MCP calls and CLI argument parsing send matching HTTP
   reads and preserve response aliases, access fields, filters and result limits;
+- sync SDK, async SDK and CLI mutation payloads agree against synthetic HTTP responses (including uploads, edits and playlist operations);
 - HTTP request paths and query fields exist in the reviewed API schema;
 - generated capability documentation matches the inventory and Python SDK examples bind to real method signatures;
 - anonymous HTTP callers cannot inherit server credentials or another caller's identity.

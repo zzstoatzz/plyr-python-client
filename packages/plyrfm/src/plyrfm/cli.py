@@ -175,6 +175,8 @@ def tracks_upload(
 def tracks_update(
     ref: str,
     *,
+    features: Annotated[str | None, cyclopts.Parameter("--features")] = None,
+    image: Annotated[Path | None, cyclopts.Parameter("--image")] = None,
     title: Annotated[str | None, cyclopts.Parameter("--title")] = None,
     album: Annotated[str | None, cyclopts.Parameter("--album")] = None,
     tags: Annotated[
@@ -199,9 +201,13 @@ def tracks_update(
     """update track metadata."""
     client = _get_client(require_auth=True)
     track_ref = _parse_track_ref(ref)
-    tag_list = [t.strip() for t in tags.split(",")] if tags else None
+    tag_list = (
+        [t.strip() for t in tags.split(",") if t.strip()] if tags is not None else None
+    )
     patch = TrackPatch(
         title=title,
+        features=features,
+        image=image,
         album=album,
         tags=tag_list,
         unlisted=unlisted,
@@ -705,6 +711,9 @@ def artists_me() -> None:
 @artists_app.command(name="update")
 def artists_update(
     *,
+    show_liked_on_profile: Annotated[
+        bool | None, cyclopts.Parameter("--show-liked-on-profile")
+    ] = None,
     bio: Annotated[str | None, cyclopts.Parameter("--bio")] = None,
     display_name: Annotated[str | None, cyclopts.Parameter("--display-name")] = None,
     support_url: Annotated[str | None, cyclopts.Parameter("--support-url")] = None,
@@ -712,7 +721,10 @@ def artists_update(
     """update your artist profile."""
     client = _get_client(require_auth=True)
     patch = ArtistProfilePatch(
-        bio=bio, display_name=display_name, support_url=support_url
+        bio=bio,
+        display_name=display_name,
+        support_url=support_url,
+        show_liked_on_profile=show_liked_on_profile,
     )
 
     try:
