@@ -7,7 +7,7 @@ links. This MCP cannot play audio in a browser or change a library.
 ```bash
 claude mcp add --transport http plyr-fm https://plyrfm.fastmcp.app/mcp
 # or local stdio
-claude mcp add plyr-fm -- uvx plyrfm-mcp
+claude mcp add plyr-fm -- uvx --prerelease=allow plyrfm-mcp
 ```
 
 Public discovery needs no token. For private reads, configure `PLYR_TOKEN` locally
