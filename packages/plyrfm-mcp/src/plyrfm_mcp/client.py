@@ -19,12 +19,14 @@ async def get_plyr_client(require_auth: bool = False) -> AsyncIterator[AsyncPlyr
         if str(exc) != "No active HTTP request found.":
             raise
         token = settings.token
+        auth_setup = "set PLYR_TOKEN in the local stdio server's environment"
     else:
         token = request.headers.get("x-plyr-token") or None
+        auth_setup = "configure the x-plyr-token header on this hosted HTTP connection"
     if require_auth and not token:
         raise ValueError(
-            "authentication required: configure PLYR_TOKEN for stdio or "
-            "x-plyr-token for HTTP. Create a token at https://plyr.fm/settings#developer"
+            f"authentication required: {auth_setup}. "
+            "Create a token at https://plyr.fm/settings#developer. Never paste it in chat."
         )
     settings = settings.model_copy(update={"token": token})
     async with AsyncPlyrClient(
