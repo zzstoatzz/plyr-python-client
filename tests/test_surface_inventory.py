@@ -51,11 +51,9 @@ async def test_inventory_covers_real_surfaces() -> None:
 
 async def test_sync_async_full_signatures() -> None:
     with PlyrClient() as sync:
-        async_client = AsyncPlyrClient()
-        for row in OPERATIONS:
-            left, right = sync, async_client
-            for name in row["sdk"].split("."):
-                left, right = getattr(left, name), getattr(right, name)
-            assert inspect.signature(left) == inspect.signature(right), row["sdk"]
-
-    await async_client.close()
+        async with AsyncPlyrClient() as async_client:
+            for row in OPERATIONS:
+                left, right = sync, async_client
+                for name in row["sdk"].split("."):
+                    left, right = getattr(left, name), getattr(right, name)
+                assert inspect.signature(left) == inspect.signature(right), row["sdk"]
