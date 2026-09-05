@@ -42,7 +42,7 @@ def check(schema: dict, source: str, baseline: dict | None = None) -> list[str]:
     functions = [
         node
         for node in ast.walk(tree)
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
     ]
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
@@ -117,7 +117,7 @@ def check(schema: dict, source: str, baseline: dict | None = None) -> list[str]:
                     values = [
                         n.value
                         for n in ast.walk(function)
-                        if isinstance(n, (ast.Assign, ast.AnnAssign))
+                        if isinstance(n, ast.Assign | ast.AnnAssign)
                         and isinstance(n.value, ast.Dict)
                     ]
                     for assignment in ast.walk(function):
