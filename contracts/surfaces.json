@@ -1,0 +1,242 @@
+[
+  {
+    "sdk": "tracks.list",
+    "cli": "tracks list",
+    "mcp": "list_tracks",
+    "cli_note": null,
+    "mcp_note": null,
+    "effect": "read"
+  },
+  {
+    "sdk": "tracks.get",
+    "cli": "tracks get",
+    "mcp": "get_track",
+    "cli_note": null,
+    "mcp_note": null,
+    "effect": "read"
+  },
+  {
+    "sdk": "tracks.get_by_uri",
+    "cli": "tracks get",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Accepted by get_track as an AT-URI.",
+    "effect": "read"
+  },
+  {
+    "sdk": "tracks.my",
+    "cli": "tracks my",
+    "mcp": "my_tracks",
+    "cli_note": null,
+    "mcp_note": null,
+    "effect": "read"
+  },
+  {
+    "sdk": "tracks.liked",
+    "cli": "tracks liked",
+    "mcp": "liked_tracks",
+    "cli_note": null,
+    "mcp_note": null,
+    "effect": "read"
+  },
+  {
+    "sdk": "tracks.like",
+    "cli": "tracks like",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "write"
+  },
+  {
+    "sdk": "tracks.unlike",
+    "cli": "tracks unlike",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "write"
+  },
+  {
+    "sdk": "tracks.upload",
+    "cli": "tracks upload",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "write"
+  },
+  {
+    "sdk": "tracks.replace_audio",
+    "cli": "tracks replace-audio",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "write"
+  },
+  {
+    "sdk": "tracks.revisions",
+    "cli": "tracks revisions",
+    "mcp": "list_revisions",
+    "cli_note": null,
+    "mcp_note": null,
+    "effect": "read"
+  },
+  {
+    "sdk": "tracks.restore_revision",
+    "cli": "tracks restore-revision",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "write"
+  },
+  {
+    "sdk": "tracks.update",
+    "cli": "tracks update",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "write"
+  },
+  {
+    "sdk": "tracks.delete",
+    "cli": "tracks delete",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "write"
+  },
+  {
+    "sdk": "tracks.download",
+    "cli": "tracks download",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "write"
+  },
+  {
+    "sdk": "playlists.list",
+    "cli": "playlists list",
+    "mcp": "list_playlists",
+    "cli_note": null,
+    "mcp_note": null,
+    "effect": "read"
+  },
+  {
+    "sdk": "playlists.get",
+    "cli": "playlists get",
+    "mcp": "get_playlist",
+    "cli_note": null,
+    "mcp_note": null,
+    "effect": "read"
+  },
+  {
+    "sdk": "playlists.by_artist",
+    "cli": null,
+    "mcp": "playlists_by_artist",
+    "cli_note": "Use SDK or MCP to inspect an artist\u2019s public playlists.",
+    "mcp_note": null,
+    "effect": "read"
+  },
+  {
+    "sdk": "playlists.create",
+    "cli": "playlists create",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "write"
+  },
+  {
+    "sdk": "playlists.add_track",
+    "cli": "playlists add-track",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "write"
+  },
+  {
+    "sdk": "playlists.remove_track",
+    "cli": "playlists remove-track",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "write"
+  },
+  {
+    "sdk": "playlists.update",
+    "cli": "playlists update",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "write"
+  },
+  {
+    "sdk": "playlists.delete",
+    "cli": "playlists delete",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "write"
+  },
+  {
+    "sdk": "playlists.recommendations",
+    "cli": null,
+    "mcp": "playlist_recommendations",
+    "cli_note": "Use SDK or MCP for playlist recommendations.",
+    "mcp_note": null,
+    "effect": "read"
+  },
+  {
+    "sdk": "tags.list",
+    "cli": "tags list",
+    "mcp": "list_tags",
+    "cli_note": null,
+    "mcp_note": null,
+    "effect": "read"
+  },
+  {
+    "sdk": "tags.tracks",
+    "cli": "tags get",
+    "mcp": "tracks_by_tag",
+    "cli_note": null,
+    "mcp_note": null,
+    "effect": "read"
+  },
+  {
+    "sdk": "artists.me",
+    "cli": "artists me",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "read"
+  },
+  {
+    "sdk": "artists.update",
+    "cli": "artists update",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Use CLI or SDK for account/profile operations; MCP is read-only.",
+    "effect": "write"
+  },
+  {
+    "sdk": "discover.search",
+    "cli": "discover search",
+    "mcp": "search",
+    "cli_note": null,
+    "mcp_note": null,
+    "effect": "read"
+  },
+  {
+    "sdk": "discover.top_tracks",
+    "cli": "discover top",
+    "mcp": "top_tracks",
+    "cli_note": null,
+    "mcp_note": null,
+    "effect": "read"
+  },
+  {
+    "sdk": "me",
+    "cli": "me",
+    "mcp": null,
+    "cli_note": null,
+    "mcp_note": "Available as the plyr://me resource.",
+    "effect": "read"
+  }
+]

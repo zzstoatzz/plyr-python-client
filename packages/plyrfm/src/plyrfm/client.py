@@ -99,7 +99,7 @@ class TracksNamespace(_SyncNamespace):
         )
         response.raise_for_status()
         data = response.json()
-        return [Track.model_validate(t) for t in data.get("tracks", [])]
+        return [Track.model_validate(t) for t in data.get("tracks", [])[:limit]]
 
     def get(self, track: TrackRef) -> Track:
         """get a track by ID or AT-URI."""
@@ -137,18 +137,17 @@ class TracksNamespace(_SyncNamespace):
         )
         response.raise_for_status()
         data = response.json()
-        return [Track.model_validate(t) for t in data.get("tracks", [])]
+        return [Track.model_validate(t) for t in data.get("tracks", [])[:limit]]
 
     def liked(self, *, limit: int = 50) -> list[Track]:
         """list tracks you've liked. requires auth."""
         response = self._api._client.get(
             self._api._url("/tracks/liked"),
             headers=self._api._auth_headers,
-            params={"limit": limit},
         )
         response.raise_for_status()
         data = response.json()
-        return [Track.model_validate(t) for t in data.get("tracks", [])]
+        return [Track.model_validate(t) for t in data.get("tracks", [])[:limit]]
 
     def like(self, track: TrackRef) -> None:
         """like a track. requires auth."""
@@ -373,20 +372,20 @@ class TracksNamespace(_SyncNamespace):
         *,
         timeout: float = 300.0,
     ) -> Path:
-        """download a track's audio file. requires auth."""
+        """Download permitted audio through the artist-policy endpoint."""
         resolved = self._resolve(track)
 
         if output is None:
             safe_title = "".join(
                 c if c.isalnum() or c in " -_" else "" for c in resolved.title
             )
-            output = Path(f"{safe_title}.{resolved.file_type}")
+            extension = resolved.original_file_type or resolved.file_type
+            output = Path(f"{safe_title}.{extension}")
         else:
-            output = Path(output)
+            output = Path(output).expanduser()
 
         response = self._api._client.get(
-            self._api._url(f"/audio/{resolved.file_id}"),
-            headers=self._api._auth_headers,
+            self._api._url(f"/audio/{resolved.file_id}/download"),
             follow_redirects=True,
             timeout=timeout,
         )
@@ -524,7 +523,7 @@ class TagsNamespace(_SyncNamespace):
         response = self._api._client.get(self._api._url(f"/tracks/tags/{tag}"))
         response.raise_for_status()
         data = response.json()
-        return [Track.model_validate(t) for t in data.get("tracks", [])]
+        return [Track.model_validate(t) for t in data.get("tracks", [])[:limit]]
 
 
 class ArtistsNamespace(_SyncNamespace):
@@ -604,7 +603,7 @@ class AsyncTracksNamespace(_AsyncNamespace):
         )
         response.raise_for_status()
         data = response.json()
-        return [Track.model_validate(t) for t in data.get("tracks", [])]
+        return [Track.model_validate(t) for t in data.get("tracks", [])[:limit]]
 
     async def get(self, track: TrackRef) -> Track:
         if is_at_uri(track):
@@ -637,17 +636,16 @@ class AsyncTracksNamespace(_AsyncNamespace):
         )
         response.raise_for_status()
         data = response.json()
-        return [Track.model_validate(t) for t in data.get("tracks", [])]
+        return [Track.model_validate(t) for t in data.get("tracks", [])[:limit]]
 
     async def liked(self, *, limit: int = 50) -> list[Track]:
         response = await self._api._client.get(
             self._api._url("/tracks/liked"),
             headers=self._api._auth_headers,
-            params={"limit": limit},
         )
         response.raise_for_status()
         data = response.json()
-        return [Track.model_validate(t) for t in data.get("tracks", [])]
+        return [Track.model_validate(t) for t in data.get("tracks", [])[:limit]]
 
     async def like(self, track: TrackRef) -> None:
         track_id = await self._resolve_id(track)
@@ -874,13 +872,13 @@ class AsyncTracksNamespace(_AsyncNamespace):
             safe_title = "".join(
                 c if c.isalnum() or c in " -_" else "" for c in resolved.title
             )
-            output = Path(f"{safe_title}.{resolved.file_type}")
+            extension = resolved.original_file_type or resolved.file_type
+            output = Path(f"{safe_title}.{extension}")
         else:
-            output = Path(output)
+            output = Path(output).expanduser()
 
         response = await self._api._client.get(
-            self._api._url(f"/audio/{resolved.file_id}"),
-            headers=self._api._auth_headers,
+            self._api._url(f"/audio/{resolved.file_id}/download"),
             follow_redirects=True,
             timeout=timeout,
         )
@@ -1009,7 +1007,7 @@ class AsyncTagsNamespace(_AsyncNamespace):
         response = await self._api._client.get(self._api._url(f"/tracks/tags/{tag}"))
         response.raise_for_status()
         data = response.json()
-        return [Track.model_validate(t) for t in data.get("tracks", [])]
+        return [Track.model_validate(t) for t in data.get("tracks", [])[:limit]]
 
 
 class AsyncArtistsNamespace(_AsyncNamespace):
@@ -1097,6 +1095,8 @@ class PlyrClient(_BaseClient):
     ) -> None:
         super().__init__(token=token, api_url=api_url, settings=settings)
         headers = {"User-Agent": user_agent or _get_user_agent()}
+        if self._token:
+            headers.update(self._auth_headers)
         self._client = httpx.Client(timeout=timeout, headers=headers)
         self.tracks = TracksNamespace(self)
         self.playlists = PlaylistsNamespace(self)
@@ -1146,6 +1146,8 @@ class AsyncPlyrClient(_BaseClient):
     ) -> None:
         super().__init__(token=token, api_url=api_url, settings=settings)
         headers = {"User-Agent": user_agent or _get_user_agent()}
+        if self._token:
+            headers.update(self._auth_headers)
         self._client = httpx.AsyncClient(timeout=timeout, headers=headers)
         self.tracks = AsyncTracksNamespace(self)
         self.playlists = AsyncPlaylistsNamespace(self)

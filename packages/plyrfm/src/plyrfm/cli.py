@@ -39,7 +39,7 @@ def _get_client(require_auth: bool = False) -> PlyrClient:
     if require_auth and not client._token:
         _error(
             "authentication required. "
-            "set PLYR_TOKEN or create a token at plyr.fm/portal"
+            "set PLYR_TOKEN or create a token at plyr.fm/settings#developer"
         )
     return client
 
@@ -257,8 +257,8 @@ def tracks_download(
         str | None, cyclopts.Parameter("--output", alias="-o", help="output path")
     ] = None,
 ) -> None:
-    """download a track."""
-    client = _get_client(require_auth=True)
+    """download a track when the artist permits it."""
+    client = _get_client()
     track_ref = _parse_track_ref(ref)
 
     with console.status("downloading..."):
@@ -632,11 +632,12 @@ app.command(tags_app)
 @tags_app.command(name="list")
 def tags_list(
     *,
+    q: Annotated[str | None, cyclopts.Parameter("--q")] = None,
     limit: Annotated[int, cyclopts.Parameter("--limit")] = 20,
 ) -> None:
     """list tags with track counts."""
     client = _get_client()
-    tags = client.tags.list(limit=limit)
+    tags = client.tags.list(q=q, limit=limit)
 
     if not tags:
         console.print("no tags found")
@@ -737,10 +738,11 @@ def discover_search(
     query: str,
     *,
     limit: Annotated[int, cyclopts.Parameter("--limit")] = 20,
+    type: Annotated[str | None, cyclopts.Parameter("--type")] = None,
 ) -> None:
     """search tracks, artists, albums, and tags."""
     client = _get_client()
-    results = client.discover.search(query, limit=limit)
+    results = client.discover.search(query, type=type, limit=limit)
 
     if not results.results:
         console.print("no results found")

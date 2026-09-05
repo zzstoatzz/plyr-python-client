@@ -17,3 +17,12 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
+
+  - repo: local
+    hooks:
+      - id: interface-parity
+        name: SDK CLI MCP and API contracts
+        entry: just check-interfaces
+        language: system
+        pass_filenames: false
+        always_run: true
