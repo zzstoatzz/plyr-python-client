@@ -50,7 +50,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", help="Hosted MCP; omit to evaluate the local checkout")
     args = parser.parse_args()
-    asyncio.run(run(args.url))
+    try:
+        asyncio.run(run(args.url))
+    except AssertionError as exc:
+        raise SystemExit(f"FAIL: {exc or 'HTTP/SDK/MCP results disagree'}") from None
 
 
 if __name__ == "__main__":

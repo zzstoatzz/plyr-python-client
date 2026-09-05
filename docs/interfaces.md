@@ -39,7 +39,7 @@ not make every resource accessible.
 - real sync SDK, async SDK, MCP calls and CLI argument parsing send matching HTTP
   reads and preserve response aliases, access fields, filters and result limits;
 - HTTP request paths and query fields exist in the reviewed API schema;
-- generated capability documentation matches the inventory;
+- generated capability documentation matches the inventory and Python SDK examples bind to real method signatures;
 - anonymous HTTP callers cannot inherit server credentials or another caller's identity.
 
 CI also checks the SDK against the current backend source schema. The backend
@@ -53,6 +53,9 @@ Add a supported operation to `contracts/surfaces.json`, implement its mappings o
 state why a surface omits it, add a real boundary test, and run `just surfaces`.
 Extending the HTTP wrapper style requires extending the AST request checker; it
 is a guard for these wrappers, not a proof of arbitrary Python behavior.
+
+Run `uv run python scripts/live_check.py --url https://plyrfm.fastmcp.app/mcp`
+to compare live results and detect a stale deployment.
 
 Offline checks are repeatable merge gates. Live checks catch deployed-version
 drift; Pi evaluations measure what an agent accomplishes. Neither replaces the other.
