@@ -38,6 +38,23 @@ def is_at_uri(ref: int | str) -> bool:
 # ---------------------------------------------------------------------------
 
 
+class PublishingPolicy(BaseModel):
+    """Independent action permissions and discovery for a work."""
+
+    listening: Literal["public", "signed_in", "supporters", "owner", "space"] = "public"
+    downloads: Literal["open", "ask", "supporters", "off"] = "open"
+    visibility: Literal["public", "unlisted", "private"] = "public"
+    model_config = {"extra": "forbid"}
+
+
+class PublishingDefaults(BaseModel):
+    """A complete publishing override; omission uses the artist's saved template."""
+
+    access: PublishingPolicy = Field(default_factory=PublishingPolicy)
+    attach_rights: bool = False
+    model_config = {"extra": "forbid"}
+
+
 class TrackPatch(BaseModel):
     """fields that can be updated on a track."""
 
@@ -46,7 +63,6 @@ class TrackPatch(BaseModel):
     features: str | None = None
     tags: list[str] | None = None
     image: Path | str | None = None
-    unlisted: bool | None = None
     # liner notes / show notes. "" clears the existing description.
     description: str | None = None
 
@@ -130,10 +146,12 @@ class Track(BaseModel):
     tags: list[str] = Field(default_factory=list)
     created_at: datetime | None = None
     unlisted: bool = False
-    visibility: str = "public"  # public | unlisted | supporters | private
+    visibility: str = "public"  # public | unlisted | private
+    publishing: PublishingDefaults | None = None
+    policy_origin: Literal["portal", "album", "track"] | None = None
     support_gate: dict[str, Any] | None = None  # supporter gating config
     gated: bool = False  # gated AND the viewer lacks access
-    audio_storage: str = "r2"  # "r2" | "pds" | "both"
+    audio_storage: str = "r2"  # "r2" | "r2_private" | "pds" | "both"
     pds_blob_cid: str | None = None  # CID when audio lives on the user's PDS
     original_file_id: str | None = None  # pre-transcode source hash
     original_file_type: str | None = None  # pre-transcode source extension

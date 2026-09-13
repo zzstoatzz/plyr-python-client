@@ -11,7 +11,13 @@ import httpx
 from rich.console import Console
 from rich.table import Table
 
-from plyrfm._internal.types import ArtistProfilePatch, TrackPatch, TrackRef, is_at_uri
+from plyrfm._internal.types import (
+    ArtistProfilePatch,
+    PublishingDefaults,
+    TrackPatch,
+    TrackRef,
+    is_at_uri,
+)
 from plyrfm.client import PlyrClient
 
 console = Console()
@@ -133,12 +139,13 @@ def tracks_upload(
         list[str] | None,
         cyclopts.Parameter("--tag", alias="-t", help="tag (repeatable)"),
     ] = None,
-    unlisted: Annotated[
-        bool,
+    publishing: Annotated[
+        str | None,
         cyclopts.Parameter(
-            "--unlisted", help="exclude track from public discovery feeds"
+            "--publishing",
+            help="complete publishing settings as JSON; omitted uses artist defaults",
         ),
-    ] = False,
+    ] = None,
     description: Annotated[
         str | None,
         cyclopts.Parameter(
@@ -160,7 +167,9 @@ def tracks_upload(
                 title,
                 album=album,
                 tags=tags,
-                unlisted=unlisted,
+                publishing=PublishingDefaults.model_validate_json(publishing)
+                if publishing
+                else None,
                 description=description,
             )
         except ValueError as e:
@@ -182,14 +191,6 @@ def tracks_update(
     tags: Annotated[
         str | None, cyclopts.Parameter("--tags", help="comma-separated tags")
     ] = None,
-    unlisted: Annotated[
-        bool | None,
-        cyclopts.Parameter(
-            "--unlisted",
-            help="hide from public discovery (--unlisted to set, --no-unlisted to clear)",
-            negative="--no-unlisted",
-        ),
-    ] = None,
     description: Annotated[
         str | None,
         cyclopts.Parameter(
@@ -210,7 +211,6 @@ def tracks_update(
         image=image,
         album=album,
         tags=tag_list,
-        unlisted=unlisted,
         description=description,
     )
 

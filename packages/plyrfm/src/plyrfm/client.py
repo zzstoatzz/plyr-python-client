@@ -18,6 +18,7 @@ from plyrfm._internal.types import (
     PlaylistId,
     PlaylistRecommendations,
     PlaylistWithTracks,
+    PublishingDefaults,
     SearchResponse,
     Tag,
     Track,
@@ -174,7 +175,7 @@ class TracksNamespace(_SyncNamespace):
         *,
         album: str | None = None,
         tags: set[str] | None = None,
-        unlisted: bool = False,
+        publishing: PublishingDefaults | None = None,
         description: str | None = None,
         timeout: float = 300.0,
     ) -> UploadResult:
@@ -191,8 +192,8 @@ class TracksNamespace(_SyncNamespace):
                 data["album"] = album
             if tags:
                 data["tags"] = json.dumps(list(tags))
-            if unlisted:
-                data["unlisted"] = "true"
+            if publishing is not None:
+                data["publishing"] = publishing.model_dump_json()
             if description is not None:
                 data["description"] = description
 
@@ -306,8 +307,6 @@ class TracksNamespace(_SyncNamespace):
             data["features"] = patch.features
         if patch.tags is not None:
             data["tags"] = json.dumps(patch.tags)
-        if patch.unlisted is not None:
-            data["unlisted"] = "true" if patch.unlisted else "false"
         if patch.description is not None:
             data["description"] = patch.description
 
@@ -670,7 +669,7 @@ class AsyncTracksNamespace(_AsyncNamespace):
         *,
         album: str | None = None,
         tags: set[str] | None = None,
-        unlisted: bool = False,
+        publishing: PublishingDefaults | None = None,
         description: str | None = None,
         timeout: float = 300.0,
     ) -> UploadResult:
@@ -686,8 +685,8 @@ class AsyncTracksNamespace(_AsyncNamespace):
                 data["album"] = album
             if tags:
                 data["tags"] = json.dumps(list(tags))
-            if unlisted:
-                data["unlisted"] = "true"
+            if publishing is not None:
+                data["publishing"] = publishing.model_dump_json()
             if description is not None:
                 data["description"] = description
 
@@ -801,8 +800,6 @@ class AsyncTracksNamespace(_AsyncNamespace):
             data["features"] = patch.features
         if patch.tags is not None:
             data["tags"] = json.dumps(patch.tags)
-        if patch.unlisted is not None:
-            data["unlisted"] = "true" if patch.unlisted else "false"
         if patch.description is not None:
             data["description"] = patch.description
 

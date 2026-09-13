@@ -9,7 +9,13 @@ from pathlib import Path
 
 import httpx
 import pytest
-from plyrfm import AsyncPlyrClient, PlyrClient, TrackPatch
+from plyrfm import (
+    AsyncPlyrClient,
+    PlyrClient,
+    PublishingDefaults,
+    PublishingPolicy,
+    TrackPatch,
+)
 from plyrfm._internal.config import get_settings
 from plyrfm._internal.types import ArtistProfilePatch
 from plyrfm.cli import app, artists_update, tracks_update
@@ -41,7 +47,7 @@ CASES = [
     ("tracks.delete", [42], {}, "DELETE", "/tracks/42", {}),
     (
         "tracks.update",
-        [42, TrackPatch(title="new", description="", tags=["ambient"], unlisted=True)],
+        [42, TrackPatch(title="new", description="", tags=["ambient"])],
         {},
         "PATCH",
         "/tracks/42",
@@ -58,7 +64,11 @@ CASES = [
     (
         "tracks.upload",
         ["AUDIO", "test"],
-        {"tags": {"ambient"}, "description": "notes"},
+        {
+            "tags": {"ambient"},
+            "description": "notes",
+            "publishing": PublishingDefaults(access=PublishingPolicy(downloads="off")),
+        },
         "POST",
         "/tracks/",
         {"track_id": 42},
@@ -122,7 +132,6 @@ COMMANDS = {
         "",
         "--tags",
         "ambient",
-        "--unlisted",
     ],
     "tracks.restore_revision": ["tracks", "restore-revision", "42", "1", "--yes"],
     "tracks.upload": [
@@ -134,6 +143,8 @@ COMMANDS = {
         "ambient",
         "--description",
         "notes",
+        "--publishing",
+        PublishingDefaults(access=PublishingPolicy(downloads="off")).model_dump_json(),
     ],
     "tracks.replace_audio": ["tracks", "replace-audio", "42", "AUDIO"],
     "playlists.create": ["playlists", "create", "test"],
