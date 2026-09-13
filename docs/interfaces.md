@@ -84,3 +84,35 @@ For a read-only authenticated trial, configure `PLYR_TOKEN` via an existing
 `.env`, then use `--env-file /path/to/.env --scenario authenticated-library`.
 Use a test account for private reads. Do not use real likes, uploads or deletions
 as connectivity probes.
+
+## publishing access
+
+uploads without a publishing override use the artist's Portal defaults (or the
+album's saved settings). the resolved policy is saved on the track; later Portal
+changes affect future uploads, not the existing catalog.
+
+```python
+from plyrfm import PlyrClient, PublishingDefaults, PublishingPolicy
+
+client = PlyrClient(token="your_token")
+client.tracks.upload(
+    "song.wav",
+    "My Song",
+    publishing=PublishingDefaults(access=PublishingPolicy(downloads="off")),
+)
+```
+
+the equivalent CLI override is:
+
+```sh
+plyrfm tracks upload song.wav "My Song" --publishing '{"access":{"listening":"public","downloads":"off","visibility":"public"},"attach_rights":false}'
+```
+
+listening, original-file downloads, discovery, and optional rights metadata are
+separate choices. downloads off still permits playback when listening is public.
+it does not prevent recording playback or revoke copies already distributed.
+
+the old upload/update `unlisted` argument and CLI flags are removed. for a new
+unlisted upload, set `access.visibility` to `unlisted` in the publishing override.
+use Portal to change access on existing tracks; metadata updates do not change it.
+private Space access still requires a compatible PDS and its native authorization.
