@@ -93,6 +93,7 @@ class ArtistProfile(BaseModel):
     avatar_url: str | None = None
     support_url: str | None = None
     show_liked_on_profile: bool = False
+    labels: list[str] = []
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
