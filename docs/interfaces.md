@@ -116,3 +116,19 @@ the old upload/update `unlisted` argument and CLI flags are removed. for a new
 unlisted upload, set `access.visibility` to `unlisted` in the publishing override.
 use Portal to change access on existing tracks; metadata updates do not change it.
 private Space access still requires a compatible PDS and its native authorization.
+
+## protected audio storage
+
+protected uploads use an app-restricted Space on the artist's PDS when it
+supports Spaces. public listening through plyr.fm does not require each listener
+to have a Spaces-capable PDS. `Track.audio_space` and `AudioRevision.audio_space`
+identify the protected audio record; `pds_blob_cid` remains the public-repo blob
+field. These URI fields describe ownership without exposing blob credentials.
+
+If the uploader's PDS lacks Spaces, the API requires explicit acceptance that
+protected audio will live only on plyr.fm. After the user accepts that choice,
+pass `accept_plyr_storage=True` to sync or async `tracks.upload`, or add
+`--accept-plyr-storage` to `plyrfm tracks upload`. Both default to false. The
+flag does not bypass a Spaces permission refusal or change an existing catalog.
+The MCP remains read-only and its upload guide must not add this acceptance
+without the user's agreement.
