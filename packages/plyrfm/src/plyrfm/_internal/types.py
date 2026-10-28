@@ -153,7 +153,8 @@ class Track(BaseModel):
     support_gate: dict[str, Any] | None = None  # supporter gating config
     gated: bool = False  # gated AND the viewer lacks access
     audio_storage: str = "r2"  # "r2" | "r2_private" | "pds" | "both"
-    pds_blob_cid: str | None = None  # CID when audio lives on the user's PDS
+    pds_blob_cid: str | None = None  # public-repo audio blob CID
+    audio_space: str | None = None
     original_file_id: str | None = None  # pre-transcode source hash
     original_file_type: str | None = None  # pre-transcode source extension
     atproto_uri: str | None = Field(default=None, alias="atproto_record_uri")
@@ -178,6 +179,7 @@ class AudioRevision(BaseModel):
     file_type: str
     original_file_type: str | None = None
     audio_storage: str  # "r2" | "pds" | "both"
+    audio_space: str | None = None
     duration: int | None = None
     was_gated: bool
 

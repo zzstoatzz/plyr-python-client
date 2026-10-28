@@ -176,6 +176,7 @@ class TracksNamespace(_SyncNamespace):
         album: str | None = None,
         tags: set[str] | None = None,
         publishing: PublishingDefaults | None = None,
+        accept_plyr_storage: bool = False,
         description: str | None = None,
         timeout: float = 300.0,
     ) -> UploadResult:
@@ -194,6 +195,8 @@ class TracksNamespace(_SyncNamespace):
                 data["tags"] = json.dumps(list(tags))
             if publishing is not None:
                 data["publishing"] = publishing.model_dump_json()
+            if accept_plyr_storage:
+                data["accept_plyr_storage"] = "true"
             if description is not None:
                 data["description"] = description
 
@@ -670,6 +673,7 @@ class AsyncTracksNamespace(_AsyncNamespace):
         album: str | None = None,
         tags: set[str] | None = None,
         publishing: PublishingDefaults | None = None,
+        accept_plyr_storage: bool = False,
         description: str | None = None,
         timeout: float = 300.0,
     ) -> UploadResult:
@@ -687,6 +691,8 @@ class AsyncTracksNamespace(_AsyncNamespace):
                 data["tags"] = json.dumps(list(tags))
             if publishing is not None:
                 data["publishing"] = publishing.model_dump_json()
+            if accept_plyr_storage:
+                data["accept_plyr_storage"] = "true"
             if description is not None:
                 data["description"] = description
 

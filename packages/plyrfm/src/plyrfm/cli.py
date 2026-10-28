@@ -123,6 +123,8 @@ def tracks_get(ref: str) -> None:
         console.print(f"[dim]album:[/] {track.album.title}")
     if track.tags:
         console.print(f"[dim]tags:[/] {', '.join(track.tags)}")
+    if track.audio_space:
+        console.print(f"[dim]audio space:[/] {track.audio_space}")
     if track.atproto_uri:
         console.print(f"[dim]uri:[/] {track.atproto_uri}")
 
@@ -146,6 +148,13 @@ def tracks_upload(
             help="complete publishing settings as JSON; omitted uses artist defaults",
         ),
     ] = None,
+    accept_plyr_storage: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--accept-plyr-storage",
+            help="accept plyr-only protected audio storage when your PDS lacks Spaces",
+        ),
+    ] = False,
     description: Annotated[
         str | None,
         cyclopts.Parameter(
@@ -171,6 +180,7 @@ def tracks_upload(
                 if publishing
                 else None,
                 description=description,
+                accept_plyr_storage=accept_plyr_storage,
             )
         except ValueError as e:
             _error(str(e))

@@ -22,63 +22,73 @@ get a token at [plyr.fm/portal](https://plyr.fm/portal) -> "developer tokens"
 
 ```bash
 # basic upload
-plyrfm upload path/to/track.mp3 "Song Title"
+plyrfm tracks upload path/to/track.mp3 "Song Title"
 
 # with album
-plyrfm upload track.mp3 "Song Title" --album "Album Name"
+plyrfm tracks upload track.mp3 "Song Title" --album "Album Name"
 
 # with tags (can use -t multiple times)
-plyrfm upload track.mp3 "Song Title" -t electronic -t ambient
+plyrfm tracks upload track.mp3 "Song Title" -t electronic -t ambient
 ```
 
-supported formats: mp3, wav, m4a
+supported formats and limits: https://docs.plyr.fm/artists/
 
 **important**: if you (Claude) composed the track, always include the `ai` tag:
 ```bash
-plyrfm upload piece.wav "鶴の舞" -t ambient -t ai
+plyrfm tracks upload piece.wav "鶴の舞" -t ambient -t ai
 ```
 
 ## updating tracks
 
 ```bash
 # update title
-plyrfm update 579 --title "new title"
+plyrfm tracks update 579 --title "new title"
 
 # update tags (replaces all tags)
-plyrfm update 579 --tags "ambient,ai"
+plyrfm tracks update 579 --tags "ambient,ai"
 
 # update multiple fields
-plyrfm update 579 --title "鶴の舞" --tags "ambient,ai"
+plyrfm tracks update 579 --title "鶴の舞" --tags "ambient,ai"
 ```
 
 ## deleting tracks
 
 ```bash
 # use my_tracks MCP tool to find track IDs first
-plyrfm delete 42
+plyrfm tracks delete 42
 ```
 
 ## liking/unliking tracks
 
 ```bash
 # like a track
-plyrfm like 123
+plyrfm tracks like 123
 
 # unlike a track
-plyrfm unlike 123
+plyrfm tracks unlike 123
 ```
 
 ## downloading tracks
 
 ```bash
 # download to current directory
-plyrfm download 42
+plyrfm tracks download 42
 
 # download to specific path
-plyrfm download 42 --output ~/Music/song.mp3
+plyrfm tracks download 42 --output ~/Music/song.mp3
 ```
 
 ## common issues
 
 - "artist_profile_required" -> user needs to create artist profile at plyr.fm/portal
 - "scope_upgrade_required" -> user needs to regenerate their token
+
+## protected audio storage
+
+Uploads use the artist's Spaces-enabled PDS for protected audio. On a PDS without
+Spaces, `plyr_storage_acceptance_required` means audio would live only on plyr.fm.
+Explain that tradeoff and ask the user before using `--accept-plyr-storage`.
+Never add this flag automatically, and never use it to bypass a Spaces refusal.
+Use `plyrfm tracks upload` for this option; both SDK upload clients accept the
+same explicit `accept_plyr_storage=True` choice. `audio_space` in a track or
+revision identifies its PDS-owned protected asset.

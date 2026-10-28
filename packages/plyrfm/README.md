@@ -65,3 +65,18 @@ get a developer token at [plyr.fm/settings#developer](https://plyr.fm/settings#d
 See [interface choices](../../docs/interfaces.md) and the generated
 [capability table](../../docs/surfaces.md). Downloads use the artist-policy
 endpoint; streaming access alone does not imply download permission.
+
+### protected upload storage
+
+restricted uploads use Spaces on your PDS when supported. If your PDS does not
+support Spaces, protected audio can instead live only on plyr.fm, after you
+explicitly accept that storage choice:
+
+```bash
+plyrfm tracks upload track.mp3 "Song Title" --accept-plyr-storage
+```
+
+The SDK equivalent is `client.tracks.upload("track.mp3", "Song Title",
+accept_plyr_storage=True)`. This option defaults to false and does not bypass
+Spaces authorization. Track and revision results expose `audio_space` when the
+audio belongs to a protected record on the artist's PDS.

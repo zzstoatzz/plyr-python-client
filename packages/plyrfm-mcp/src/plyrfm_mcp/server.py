@@ -57,6 +57,13 @@ plyrfm tracks upload track.mp3 "Song Title" --album "Album Name"
 plyrfm tracks upload track.mp3 "Song Title" -t electronic -t ambient
 ```
 
+## protected audio storage
+protected uploads use an app-restricted Space on the artist's PDS when supported.
+If the PDS lacks Spaces, explain that the protected audio will live only on
+plyr.fm and obtain the user's explicit acceptance before suggesting
+`--accept-plyr-storage`. Never add that flag automatically after an error.
+A Space-capable PDS refusing authorization is not a reason to use this flag.
+
 ## supported formats
 Consult https://docs.plyr.fm/artists/ for current upload formats and limits.
 
@@ -68,6 +75,8 @@ tags help users filter and discover tracks. common tags:
 ## common issues
 - "artist_profile_required" -> user needs to create artist profile at plyr.fm/portal
 - "scope_upgrade_required" -> user needs to regenerate their token
+- "permissioned_scope_required" -> approve Spaces access in the web app, then regenerate the token
+- "plyr_storage_acceptance_required" -> explain plyr-only storage; proceed only if the user accepts
 """
 
 
