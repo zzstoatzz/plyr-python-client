@@ -119,13 +119,14 @@ async def test_space_ownership_survives_sdk_and_mcp_reads(
     api: tuple[str, Queue[dict[str, bytes]]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     url, _ = api
-    with PlyrClient(api_url=url) as client:
+    with PlyrClient(api_url=url, token="test-token") as client:
         assert client.tracks.get(42).audio_space == AUDIO_SPACE
-    async with AsyncPlyrClient(api_url=url) as client:
+    async with AsyncPlyrClient(api_url=url, token="test-token") as client:
         track = await client.tracks.get(42)
         assert track.audio_space == AUDIO_SPACE
         assert track.pds_blob_cid is None
     monkeypatch.setenv("PLYR_API_URL", url)
+    monkeypatch.setenv("PLYR_TOKEN", "test-token")
     get_settings.cache_clear()
     try:
         async with Client(mcp) as client:
