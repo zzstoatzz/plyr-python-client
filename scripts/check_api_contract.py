@@ -33,6 +33,37 @@ def shape(value: object, schema: dict, seen: frozenset[str] = frozenset()) -> ob
     }
 
 
+def compatible_response(current: object, previous: object) -> bool:
+    if isinstance(current, dict) and isinstance(previous, dict):
+        if current.keys() != previous.keys():
+            return False
+        for key, value in current.items():
+            old = previous[key]
+            if (
+                key == "properties"
+                and isinstance(value, dict)
+                and isinstance(old, dict)
+            ):
+                required = set(current.get("required", [])) | set(
+                    previous.get("required", [])
+                )
+                if required.intersection(value.keys() ^ old.keys()):
+                    return False
+                if any(
+                    not compatible_response(value[name], old[name])
+                    for name in value.keys() & old.keys()
+                ):
+                    return False
+            elif not compatible_response(value, old):
+                return False
+        return True
+    if isinstance(current, list) and isinstance(previous, list):
+        return len(current) == len(previous) and all(
+            compatible_response(new, old) for new, old in zip(current, previous, strict=True)
+        )
+    return current == previous
+
+
 def check(schema: dict, source: str, baseline: dict | None = None) -> list[str]:
     paths = {
         path_pattern(path): operations for path, operations in schema["paths"].items()
@@ -97,7 +128,14 @@ def check(schema: dict, source: str, baseline: dict | None = None) -> list[str]:
                                 for k, v in (old or {}).items()
                                 if k.startswith("2")
                             }
-                        if shape(current, schema) != shape(old, baseline):
+                        matches = (
+                            compatible_response(
+                                shape(current, schema), shape(old, baseline)
+                            )
+                            if section == "responses"
+                            else shape(current, schema) == shape(old, baseline)
+                        )
+                        if not matches:
                             errors.append(
                                 f"{node.func.attr.upper()} {route}: {section} changed; review SDK models, CLI/MCP mappings and refresh the contract"
                             )
