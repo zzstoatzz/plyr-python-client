@@ -59,7 +59,8 @@ def compatible_response(current: object, previous: object) -> bool:
         return True
     if isinstance(current, list) and isinstance(previous, list):
         return len(current) == len(previous) and all(
-            compatible_response(new, old) for new, old in zip(current, previous, strict=True)
+            compatible_response(new, old)
+            for new, old in zip(current, previous, strict=True)
         )
     return current == previous
 
