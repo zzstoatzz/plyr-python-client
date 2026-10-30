@@ -80,3 +80,7 @@ The SDK equivalent is `client.tracks.upload("track.mp3", "Song Title",
 accept_plyr_storage=True)`. This option defaults to false and does not bypass
 Spaces authorization. Track and revision results expose `audio_space` when the
 audio belongs to a protected record on the artist's PDS.
+
+Track metadata includes `duration` in seconds when the API has it; older API
+responses and tracks without a stored duration return `None`. The sync/async SDK
+and MCP preserve it. The CLI's text view does not display duration.

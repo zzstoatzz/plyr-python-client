@@ -137,6 +137,7 @@ class Track(BaseModel):
     description: str | None = None  # liner notes / show notes
     file_id: str
     file_type: str = "mp3"
+    duration: int | None = None
     artist: str = ""  # display name or handle
     artist_handle: str = ""
     play_count: int = 0
