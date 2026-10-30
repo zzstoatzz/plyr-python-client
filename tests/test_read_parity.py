@@ -16,6 +16,7 @@ TRACK = {
     "id": 42,
     "title": "test ambient",
     "file_id": "audio",
+    "duration": 123,
     "visibility": "private",
     "gated": True,
     "r2_url": None,
@@ -246,6 +247,8 @@ async def test_same_reads(
                 await getattr(getattr(async_client, namespace), name)(*args, **kwargs)
             )
         assert actual == expected
+        if operation == "tracks.get":
+            assert expected["duration"] == 123
         async with Client(mcp) as client:
             result = await client.call_tool(tool, tool_args)
         actual = result.structured_content
